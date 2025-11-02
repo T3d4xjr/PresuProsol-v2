@@ -1,5 +1,5 @@
 {
-  "name": "PresuProsol",
+  "name": "presuprosol",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,11 +8,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "bootstrap": "^5.3.8",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
   },
-  "devDependencies": {},
   "keywords": [],
   "author": "",
   "license": "ISC"
