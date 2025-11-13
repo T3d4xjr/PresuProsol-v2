@@ -1,28 +1,29 @@
-import React, { useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter } from 'next/router';
-import useAuth from '../hooks/useAuth';
-import styles from '../styles/Header.module.css';
+// src/components/Header.js
+import React, { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/router";
+import useAuth from "../hooks/useAuth";
+import styles from "../styles/Header.module.css";
 
 const Header = () => {
   const { profile, session, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
-  const toggleMenu = () => setOpen(!open);
+  const toggleMenu = () => setOpen((prev) => !prev);
   const closeMenu = () => setOpen(false);
 
   const handleLogout = async () => {
     await signOut();
     closeMenu();
-    router.push('/'); // volver al inicio
+    router.push("/"); // volver al inicio
   };
 
   const goProtected = (href) => {
     if (!session) {
       closeMenu();
-      router.push('/login?m=login-required');
+      router.push("/login?m=login-required");
       return;
     }
     closeMenu();
@@ -32,21 +33,24 @@ const Header = () => {
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
+        {/* Logo */}
         <Link href="/" className={styles.logo} onClick={closeMenu}>
           PresuProsol
         </Link>
 
+        {/* Botón Hamburguesa (solo móvil) */}
         <button
           className={styles.toggleButton}
           onClick={toggleMenu}
           aria-label="Abrir menú"
         >
-          <span className={`${styles.bar} ${open ? styles.barOpen : ''}`} />
-          <span className={`${styles.bar} ${open ? styles.barOpen : ''}`} />
-          <span className={`${styles.bar} ${open ? styles.barOpen : ''}`} />
+          <span className={`${styles.bar} ${open ? styles.barOpen : ""}`} />
+          <span className={`${styles.bar} ${open ? styles.barOpen : ""}`} />
+          <span className={`${styles.bar} ${open ? styles.barOpen : ""}`} />
         </button>
 
-        <nav className={`${styles.nav} ${open ? styles.showMenu : ''}`}>
+        {/* Navegación */}
+        <nav className={`${styles.nav} ${open ? styles.showMenu : ""}`}>
           <div className={styles.actions}>
             {profile ? (
               <>
@@ -54,9 +58,8 @@ const Header = () => {
                 <button
                   type="button"
                   className={styles.userChip}
-                  onClick={() => goProtected('/perfil')}
+                  onClick={() => goProtected("/perfil")}
                 >
-                  {/* Si tiene foto_url, mostramos la imagen; si no, inicial */}
                   {profile.foto_url ? (
                     <div className={styles.avatarImgWrapper}>
                       <Image
@@ -69,12 +72,12 @@ const Header = () => {
                     </div>
                   ) : (
                     <span className={styles.avatar}>
-                      {profile.usuario?.[0]?.toUpperCase() ?? 'U'}
+                      {profile.usuario?.[0]?.toUpperCase() ?? "U"}
                     </span>
                   )}
 
                   <span className={styles.userName}>
-                    {profile.usuario ?? 'Usuario'}
+                    {profile.usuario ?? "Usuario"}
                   </span>
                 </button>
 
@@ -88,7 +91,11 @@ const Header = () => {
               </>
             ) : (
               <>
-                <Link href="/login" className={styles.login} onClick={closeMenu}>
+                <Link
+                  href="/login"
+                  className={styles.login}
+                  onClick={closeMenu}
+                >
                   Iniciar sesión
                 </Link>
                 <Link

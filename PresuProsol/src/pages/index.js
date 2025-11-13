@@ -143,7 +143,7 @@ export default function Home() {
               <h3 className={styles.h3}>Paños de persiana</h3>
               <button
                 className={styles.seeMore}
-                onClick={() => handleProtectedClick("/catalogo")}
+                onClick={() => handleProtectedClick("/panos")}
               >
                 Ver más
               </button>

@@ -15,6 +15,7 @@ export default function Mosquiteras() {
       router.push("/login?m=login-required");
       return;
     }
+    // 👇 ESTA ES LA RUTA CORRECTA
     router.push(`/mosquiteras/${tipo}`);
   };
 
@@ -24,22 +25,27 @@ export default function Mosquiteras() {
         <title>Mosquiteras · PresuProsol</title>
       </Head>
 
-      {/* Layout para mantener el footer abajo */}
       <div className="d-flex flex-column min-vh-100">
         <Header />
 
-        {/* Contenido */}
         <main className="flex-grow-1">
           <section className="container py-5" style={{ maxWidth: 1200 }}>
             <div className="text-center mb-5">
               <h1
                 className="mb-3"
-                style={{ color: "var(--primary)", fontSize: "clamp(28px,3vw,36px)" }}
+                style={{
+                  color: "var(--primary)",
+                  fontSize: "clamp(28px,3vw,36px)",
+                }}
               >
                 Elige el tipo de mosquitera
               </h1>
-              <p className="text-muted" style={{ fontSize: 16, maxWidth: 620, margin: "0 auto" }}>
-                Selecciona un tipo para configurarlo y obtener tu precio personalizado.
+              <p
+                className="text-muted"
+                style={{ fontSize: 16, maxWidth: 620, margin: "0 auto" }}
+              >
+                Selecciona un tipo para configurarlo y obtener tu precio
+                personalizado.
               </p>
             </div>
 
