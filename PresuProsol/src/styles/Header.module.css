@@ -1,14 +1,14 @@
+/* ===== HEADER GENERAL ===== */
 .header {
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   position: sticky;
   top: 0;
   z-index: 1000;
 }
 
-/* Contenedor principal centrado */
 .inner {
-  max-width: 1200px;
+  max-width: var(--container-max, 1200px);
   margin: 0 auto;
   padding: 0 24px;
   height: 70px;
@@ -17,22 +17,21 @@
   justify-content: space-between;
 }
 
-/* Logo */
+/* ===== LOGO ===== */
 .logo {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary);
   text-decoration: none;
 }
 
-/* Navegación */
+/* ===== NAVEGACIÓN ===== */
 .nav {
   display: flex;
   align-items: center;
   gap: 2rem;
 }
 
-/* Lista */
 .navList {
   display: flex;
   gap: 2rem;
@@ -41,51 +40,120 @@
   padding: 0;
 }
 
-.navList a {
-  color: #444;
+.link {
+  color: var(--text, #444);
   font-size: 1rem;
   text-decoration: none;
-  transition: color 0.3s ease;
+  transition: color 0.2s ease;
 }
-
-.navList a:hover {
+.link:hover {
   color: var(--primary);
 }
 
-/* Botones */
+/* ===== ACCIONES (login / registro o user) ===== */
 .actions {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
+/* ===== Botones auth ===== */
 .login {
-  border: 1px solid #ccc;
+  border: 1px solid rgba(16, 24, 40, 0.15);
   padding: 6px 14px;
-  border-radius: 6px;
-  color: #555;
+  border-radius: 10px;
+  color: var(--text);
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease;
 }
-
 .login:hover {
-  background: #f2f2f2;
+  background: rgba(16, 24, 40, 0.06);
 }
 
 .signup {
   background: var(--accent);
   color: #fff;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: 10px;
   text-decoration: none;
-  transition: 0.3s;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-
 .signup:hover {
-  opacity: 0.9;
+  opacity: 0.95;
+  transform: translateY(-1px);
 }
 
-/* --- Hamburguesa --- */
+/* ===== User Chip (cuando está logueado) ===== */
+.userChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f3f4f7;
+  color: #222;
+  text-decoration: none;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.userChip:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ===== AVATAR (si no hay foto_url) ===== */
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+/* ===== AVATAR IMAGEN (si hay foto_url) ===== */
+.avatarImgWrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #ccc;
+}
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* ===== NOMBRE DE USUARIO ===== */
+.userName {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 14px;
+  user-select: none;
+}
+
+/* ===== BOTÓN SALIR ===== */
+.logoutBtn {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: transparent;
+  color: #444;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.logoutBtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* ===== HAMBURGUESA ===== */
 .toggleButton {
   display: none;
   flex-direction: column;
@@ -96,29 +164,24 @@
   border: none;
   cursor: pointer;
 }
-
 .bar {
   height: 3px;
   width: 100%;
-  background: #333;
+  background: var(--text, #333);
   border-radius: 2px;
-  transition: 0.3s;
+  transition: transform 0.3s, opacity 0.3s;
 }
-
-/* Animación de X */
 .barOpen:nth-child(1) {
   transform: rotate(45deg) translateY(7px);
 }
-
 .barOpen:nth-child(2) {
   opacity: 0;
 }
-
 .barOpen:nth-child(3) {
   transform: rotate(-45deg) translateY(-7px);
 }
 
-/* --- Responsive --- */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 992px) {
   .toggleButton {
     display: flex;
@@ -128,15 +191,15 @@
     position: fixed;
     top: 70px;
     right: -100%;
-    width: 70%;
+    width: 72%;
     height: calc(100vh - 70px);
-    background: #fff;
+    background: var(--surface);
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2rem;
-    transition: right 0.4s ease;
-    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+    transition: right 0.35s ease;
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.12);
   }
 
   .showMenu {
@@ -147,9 +210,33 @@
     flex-direction: column;
     gap: 1.5rem;
   }
-
   .actions {
     flex-direction: column;
     gap: 1rem;
+  }
+}
+
+/* ===== DARK MODE ===== */
+@media (prefers-color-scheme: dark) {
+  .header {
+    background: var(--surface);
+  }
+  .login {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--text);
+  }
+  .userChip {
+    background: #0f141b;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+  }
+  .logoutBtn {
+    background: #121821;
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .avatar {
+    background: var(--accent);
+    color: #fff;
   }
 }

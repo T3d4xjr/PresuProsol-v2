@@ -1,0 +1,123 @@
+/* ===========================
+   Estilos específicos para la página de Login
+   =========================== */
+
+/* Contenedor principal centrado */
+.loginContainer {
+  display: flex;
+  align-items: center;       /* centra verticalmente */
+  justify-content: center;   /* centra horizontalmente */
+  min-height: calc(100vh - 220px); /* deja sitio para header + footer */
+  background: var(--background);
+  padding: 32px 16px;
+}
+
+/* Caja que limita el ancho */
+.loginBox {
+  width: 100%;
+  max-width: 520px;
+}
+
+/* Título principal */
+.loginTitle {
+  color: var(--primary);
+  font-weight: 700;
+  font-size: clamp(28px, 3.4vw, 40px);
+  margin-bottom: 8px;
+}
+
+/* Subtítulo o texto guía */
+.loginSubtitle {
+  margin-bottom: 20px;
+  color: var(--text2);
+  line-height: 1.4;
+}
+
+/* Tarjeta que contiene el formulario */
+.loginCard {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  padding: 24px;
+}
+
+/* Campos del formulario */
+.loginCard .form-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.loginCard .form-control {
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: border-color 0.2s;
+}
+
+.loginCard .form-control:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 138, 0, 0.25);
+  outline: none;
+}
+
+/* Botón principal */
+.loginButton {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 16px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+
+.loginButton:hover:not(:disabled) {
+  background: #ff9d2d;
+}
+
+.loginButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Enlace inferior */
+.loginFooterText {
+  text-align: center;
+  margin-top: 16px;
+  color: var(--text2);
+  font-size: 14px;
+}
+
+.loginFooterText a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Alertas */
+.alert {
+  border-radius: 12px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.alert-success {
+  background: #e6f9ed;
+  color: #1b7a3d;
+  border: 1px solid #b9e2c7;
+}
+
+.alert-warning {
+  background: #fff8e6;
+  color: #a37a00;
+  border: 1px solid #ffe5a3;
+}
+
+.alert-danger {
+  background: #ffe9e6;
+  color: #a3322b;
+  border: 1px solid #f2b1a8;
+}

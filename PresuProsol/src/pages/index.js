@@ -1,11 +1,23 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import Image from "next/image";
+import { useRouter } from "next/router";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import styles from "../styles/Home.module.css";
+import useAuth from "../hooks/useAuth";
+import LoginAlert from "../components/LoginAlert"; // modal personalizado
 
 export default function Home() {
+  const router = useRouter();
+  const { session, profile, loading } = useAuth(); // 👈 también profile y loading
+  const [showAlert, setShowAlert] = useState(false);
+
+  // Usuario realmente permitido (logueado y habilitado)
+  const canAccess =
+    !!session && !!profile && profile.habilitado !== false;
+
+  // Animaciones de aparición
   useEffect(() => {
     const targets = document.querySelectorAll("[data-reveal]");
     if (!targets.length) return;
@@ -24,22 +36,53 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
+  // 👇 manejador genérico para cualquier acción protegida
+  const handleProtectedClick = (href) => {
+    // mientras carga auth, mejor no hacer nada
+    if (loading) return;
+
+    if (!canAccess) {
+      setShowAlert(true); // mostrar alerta personalizada
+      return;
+    }
+
+    if (href) {
+      // si es URL externa (maps), abrimos en nueva pestaña
+      if (href.startsWith("http")) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      } else {
+        router.push(href);
+      }
+    }
+  };
+
   return (
     <>
       <Head>
         <title>PresuProsol</title>
-        <meta name="description" content="Presupuesto de persianas al instante" />
+        <meta
+          name="description"
+          content="Presupuesto de persianas al instante"
+        />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
       <Header />
 
       <main className={styles.page}>
+        {/* HERO */}
         <section className={`${styles.hero} ${styles.reveal}`} data-reveal>
           <div className={`${styles.heroLeft} ${styles.reveal}`} data-reveal>
             <h1 className={styles.h1}>Presupuesto de persianas al instante</h1>
-            <p className={styles.lead}>Configura, calcula y pide tus persianas en pocos pasos.</p>
-            <button className={`${styles.primaryBtn} ${styles.wiggleOnHover}`}>Empieza tu presupuesto</button>
+            <p className={styles.lead}>
+              Configura, calcula y pide tus persianas en pocos pasos.
+            </p>
+            <button
+              className={`${styles.primaryBtn} ${styles.wiggleOnHover}`}
+              onClick={() => handleProtectedClick("/presupuestador")}
+            >
+              Empieza tu presupuesto
+            </button>
           </div>
 
           <div className={styles.heroRight}>
@@ -50,12 +93,18 @@ export default function Home() {
                 width={720}
                 height={405}
                 priority
-                style={{ width: "100%", height: "auto", borderRadius: "16px", objectFit: "cover" }}
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  borderRadius: "16px",
+                  objectFit: "cover",
+                }}
               />
             </div>
           </div>
         </section>
 
+        {/* SERVICIOS */}
         <section className={`${styles.services} ${styles.reveal}`} data-reveal>
           <h2 className={styles.h2}>Servicios</h2>
 
@@ -72,7 +121,12 @@ export default function Home() {
                 />
               </div>
               <h3 className={styles.h3}>Mosquiteras</h3>
-              <button className={styles.seeMore}>Ver más</button>
+              <button
+                className={styles.seeMore}
+                onClick={() => handleProtectedClick("/mosquiteras")}
+              >
+                Ver más
+              </button>
             </div>
 
             {/* 2) Paños de persiana */}
@@ -87,7 +141,12 @@ export default function Home() {
                 />
               </div>
               <h3 className={styles.h3}>Paños de persiana</h3>
-              <button className={styles.seeMore}>Ver más</button>
+              <button
+                className={styles.seeMore}
+                onClick={() => handleProtectedClick("/catalogo")}
+              >
+                Ver más
+              </button>
             </div>
 
             {/* 3) Persianas compacto */}
@@ -102,7 +161,12 @@ export default function Home() {
                 />
               </div>
               <h3 className={styles.h3}>Persianas compacto</h3>
-              <button className={styles.seeMore}>Ver más</button>
+              <button
+                className={styles.seeMore}
+                onClick={() => handleProtectedClick("/catalogo")}
+              >
+                Ver más
+              </button>
             </div>
 
             {/* 4) Protección solar */}
@@ -117,7 +181,12 @@ export default function Home() {
                 />
               </div>
               <h3 className={styles.h3}>Protección solar</h3>
-              <button className={styles.seeMore}>Ver más</button>
+              <button
+                className={styles.seeMore}
+                onClick={() => handleProtectedClick("/catalogo")}
+              >
+                Ver más
+              </button>
             </div>
 
             {/* 5) Puertas de garaje */}
@@ -132,7 +201,12 @@ export default function Home() {
                 />
               </div>
               <h3 className={styles.h3}>Puertas de garaje</h3>
-              <button className={styles.seeMore}>Ver más</button>
+              <button
+                className={styles.seeMore}
+                onClick={() => handleProtectedClick("/catalogo")}
+              >
+                Ver más
+              </button>
             </div>
 
             {/* 6) Pérgola bioclimática */}
@@ -147,23 +221,32 @@ export default function Home() {
                 />
               </div>
               <h3 className={styles.h3}>Pérgola bioclimática</h3>
-              <button className={styles.seeMore}>Ver más</button>
+              <button
+                className={styles.seeMore}
+                onClick={() => handleProtectedClick("/catalogo")}
+              >
+                Ver más
+              </button>
             </div>
           </div>
         </section>
 
+        {/* MAPA */}
         <section className={`${styles.find} ${styles.reveal}`} data-reveal>
           <div className={`${styles.findLeft} ${styles.reveal}`} data-reveal>
             <h2 className={styles.h2}>Encuéntranos</h2>
             <p>Visítanos o revisa nuestra ubicación en Google Maps.</p>
-            <a
-              href="https://www.google.com/maps?q=Pecrisur+Persianas,+Córdoba,+España"
-              target="_blank"
-              rel="noopener noreferrer"
+
+            <button
               className={styles.secondaryBtn}
+              onClick={() =>
+                handleProtectedClick(
+                  "https://www.google.com/maps?q=Pecrisur+Persianas,+Córdoba,+España"
+                )
+              }
             >
               Ver en Google Maps
-            </a>
+            </button>
           </div>
 
           <div className={`${styles.findRight} ${styles.reveal}`} data-reveal>
@@ -184,6 +267,9 @@ export default function Home() {
       </main>
 
       <Footer />
+
+      {/* Modal personalizado de acceso */}
+      {showAlert && <LoginAlert onClose={() => setShowAlert(false)} />}
     </>
   );
 }
