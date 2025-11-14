@@ -38,11 +38,12 @@ export default function PanosIndex() {
   };
 
   return (
-    <>
+    <div className="d-flex flex-column min-vh-100">
       <Head><title>Paños · PresuProsol</title></Head>
+      
       <Header />
 
-      <main className="container py-5" style={{ maxWidth: 1200 }}>
+      <main className="container py-5 flex-grow-1" style={{ maxWidth: 1200 }}>
         <div className="text-center mb-5">
           <h1 className="mb-3" style={{ color: "var(--primary)", fontSize: "clamp(28px,3vw,36px)" }}>
             Elige el tipo de paño
@@ -70,11 +71,7 @@ export default function PanosIndex() {
         </div>
       </main>
 
-      {/* footer pegado abajo */}
-      <div className="d-flex flex-column min-vh-100">
-        <div className="flex-grow-1" />
-        <Footer />
-      </div>
-    </>
+      <Footer />
+    </div>
   );
 }

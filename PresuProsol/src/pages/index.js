@@ -163,7 +163,7 @@ export default function Home() {
               <h3 className={styles.h3}>Persianas compacto</h3>
               <button
                 className={styles.seeMore}
-                onClick={() => handleProtectedClick("/catalogo")}
+                onClick={() => handleProtectedClick("/compactos")}
               >
                 Ver más
               </button>
@@ -183,7 +183,7 @@ export default function Home() {
               <h3 className={styles.h3}>Protección solar</h3>
               <button
                 className={styles.seeMore}
-                onClick={() => handleProtectedClick("/catalogo")}
+                onClick={() => handleProtectedClick("/proteccion-solar")}
               >
                 Ver más
               </button>

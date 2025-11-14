@@ -1,4 +1,4 @@
-// src/pages/panos/[tipo].js
+// src/pages/proteccion-solar/[tipo].js
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
@@ -7,40 +7,49 @@ import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 
-import {
-  getPanoPricePerM2,
-  calcAreaM2,
-  calcAccesoriosTotal,
-  applyDiscount,
-} from "../../lib/pricingPanos";
-
-export default function ConfigPanos() {
+export default function ConfigProteccionSolar() {
   const router = useRouter();
-  const { tipo } = router.query; // 'pano' | 'lamas'
+  const { tipo } = router.query;
   const { session, profile, loading } = useAuth();
 
-  // datos catálogo
-  const [modelos, setModelos] = useState([]); // [{id,tipo,nombre}]
-  const [acabados, setAcabados] = useState([]); // [{id,clave,nombre}]
-  const [accesorios, setAccesorios] = useState([]); // [{id,nombre,unidad,pvp}]
+  // Catálogo
+  const [modelos, setModelos] = useState([]);
+  const [colores, setColores] = useState([]);
+  const [accesorios, setAccesorios] = useState([]);
 
-  // selección
+  // Selección
   const [modeloId, setModeloId] = useState("");
-  const [acabadoId, setAcabadoId] = useState("");
+  const [colorId, setColorId] = useState("");
   const [alto, setAlto] = useState(""); // mm
   const [ancho, setAncho] = useState(""); // mm
-  const [accSel, setAccSel] = useState([]); // [{id,nombre,pvp,unidades}]
+  const [accSel, setAccSel] = useState([]);
 
-  // importes
-  const [precioM2, setPrecioM2] = useState(null); // null = consultar
-  const [areaM2, setAreaM2] = useState(0);
-  const [base, setBase] = useState(0);
+  // Precios
+  const [precioM2, setPrecioM2] = useState(null);
+  const [precioBase, setPrecioBase] = useState(0);
+  const [incrementoColor, setIncrementoColor] = useState(0);
   const [accTotal, setAccTotal] = useState(0);
   const [descuento, setDescuento] = useState(0);
   const [total, setTotal] = useState(0);
 
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const tituloTipo = {
+    "toldos-brazos": "Toldos de brazos",
+    "toldos-punto-recto": "Toldos de punto recto",
+    "screen-vertical": "Screen vertical"
+  }[tipo] || "Protección Solar";
+
+  // Calcular seleccionados
+  const modeloSel = useMemo(
+    () => modelos.find((m) => m.id === modeloId),
+    [modelos, modeloId]
+  );
+  const colorSel = useMemo(
+    () => colores.find((c) => c.id === colorId),
+    [colores, colorId]
+  );
 
   /* ================== ACCESO ================== */
   useEffect(() => {
@@ -52,52 +61,52 @@ export default function ConfigPanos() {
   /* ================== CARGA CATÁLOGO ================== */
   useEffect(() => {
     const load = async () => {
-      // MODELOS
-      const { data: m, error: mErr } = await supabase
-        .from("panos_modelos")
-        .select("id,tipo,nombre,activo")
-        .eq("activo", true)
-        .order("tipo")
-        .order("nombre");
+      try {
+        // MODELOS
+        const { data: m, error: mErr } = await supabase
+          .from("proteccionsolar_modelos")
+          .select("*");
 
-      if (mErr) {
-        console.error("[panos_modelos] error:", mErr);
-        setModelos([]);
-      } else {
-        setModelos(m || []);
-      }
+        if (mErr) {
+          console.error("[proteccionsolar_modelos] error:", mErr);
+          setModelos([]);
+        } else {
+          const activos = (m || []).filter((x) => x.activo === true);
+          setModelos(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+        }
 
-      // ACABADOS
-      const { data: a, error: aErr } = await supabase
-        .from("panos_acabados")
-        .select("id,clave,nombre,activo,orden")
-        .eq("activo", true)
-        .order("orden");
+        // COLORES ESTRUCTURA
+        const { data: c, error: cErr } = await supabase
+          .from("proteccionsolar_colores_estructura")
+          .select("*");
 
-      if (aErr) {
-        console.error("[panos_acabados] error:", aErr);
-        setAcabados([]);
-      } else {
-        setAcabados(a || []);
-      }
+        if (cErr) {
+          console.error("[proteccionsolar_colores_estructura] error:", cErr);
+          setColores([]);
+        } else {
+          const activos = (c || []).filter((x) => x.activo === true);
+          setColores(activos.sort((a, b) => (a.orden || 0) - (b.orden || 0)));
+        }
 
-      // ACCESORIOS
-      const { data: acc, error: accErr } = await supabase
-        .from("panos_accesorios")
-        .select("id,nombre,unidad,pvp,activo")
-        .eq("activo", true)
-        .order("nombre");
+        // ACCESORIOS
+        const { data: acc, error: accErr } = await supabase
+          .from("proteccionsolar_accesorios")
+          .select("*");
 
-      if (accErr) {
-        console.error("[panos_accesorios] error:", accErr);
-        setAccesorios([]);
-      } else {
-        setAccesorios(acc || []);
+        if (accErr) {
+          console.error("[proteccionsolar_accesorios] error:", accErr);
+          setAccesorios([]);
+        } else {
+          const activos = (acc || []).filter((x) => x.activo === true);
+          setAccesorios(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+        }
+      } catch (e) {
+        console.error("[load catálogo] exception:", e);
       }
     };
 
-    load();
-  }, []);
+    if (tipo) load();
+  }, [tipo]);
 
   /* ================== DESCUENTO CLIENTE ================== */
   useEffect(() => {
@@ -107,39 +116,21 @@ export default function ConfigPanos() {
       const uid = session.user.id;
 
       try {
-        console.log("[panos descuento] buscando para auth_user_id:", uid);
-
-        const { data, error, status } = await supabase
+        const { data, error } = await supabase
           .from("administracion_usuarios")
           .select("id, auth_user_id, descuento, descuento_cliente")
           .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
           .maybeSingle();
 
-        console.log("[panos descuento] status:", status, "data:", data, "error:", error);
-
-        if (error) {
-          console.warn("[panos descuento] error:", error);
+        if (error || !data) {
           setDescuento(0);
           return;
         }
 
-        if (!data) {
-          console.warn("[panos descuento] no se encontró usuario");
-          setDescuento(0);
-          return;
-        }
-
-        // Priorizar descuento (campo principal), luego descuento_cliente
         const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
-        console.log("[panos descuento] aplicado =", pct, "%", {
-          descuento: data?.descuento,
-          descuento_cliente: data?.descuento_cliente,
-          calculado: pct
-        });
-
         setDescuento(Number.isFinite(pct) ? pct : 0);
       } catch (e) {
-        console.error("[panos descuento] exception:", e);
+        console.error("[proteccion-solar descuento] exception:", e);
         setDescuento(0);
       }
     };
@@ -147,38 +138,66 @@ export default function ConfigPanos() {
     loadDesc();
   }, [session?.user?.id]);
 
-  /* ================== PRECIO €/m² ================== */
+  /* ================== PRECIO BASE (€/m²) ================== */
   useEffect(() => {
-    const run = async () => {
+    const loadPrecio = async () => {
       setPrecioM2(null);
-      if (!modeloId || !acabadoId) return;
+      if (!modeloId || !colorId) return;
 
-      const p = await getPanoPricePerM2(modeloId, acabadoId);
-      // puede ser null -> "consultar"
-      setPrecioM2(p);
+      try {
+        const { data, error } = await supabase
+          .from("proteccionsolar_precios")
+          .select("*")
+          .eq("modelo_id", modeloId)
+          .eq("color_id", colorId)
+          .maybeSingle();
+
+        if (error || !data) {
+          console.warn("[precio] no encontrado para", { modeloId, colorId });
+          setPrecioM2(null);
+        } else {
+          setPrecioM2(Number(data.precio_m2 || 0));
+        }
+      } catch (e) {
+        console.error("[loadPrecio] exception:", e);
+        setPrecioM2(null);
+      }
     };
 
-    run();
-  }, [modeloId, acabadoId]);
+    loadPrecio();
+  }, [modeloId, colorId]);
+
+  /* ================== INCREMENTO COLOR ================== */
+  useEffect(() => {
+    if (!colorSel) {
+      setIncrementoColor(0);
+      return;
+    }
+    setIncrementoColor(Number(colorSel.incremento_m2 || 0));
+  }, [colorSel]);
 
   /* ================== CÁLCULOS ================== */
   useEffect(() => {
-    const area = calcAreaM2(alto, ancho);
-    setAreaM2(+area.toFixed(4));
+    const altoM = Number(alto || 0) / 1000;
+    const anchoM = Number(ancho || 0) / 1000;
+    const areaM2 = altoM * anchoM;
 
-    const baseImporte =
-      precioM2 == null
-        ? 0
-        : +(area * Number(precioM2 || 0)).toFixed(2);
-    setBase(baseImporte);
+    // Precio base
+    const pBase = precioM2 !== null ? precioM2 * areaM2 : 0;
+    setPrecioBase(+pBase.toFixed(2));
 
-    const acc = calcAccesoriosTotal(accSel);
+    // Accesorios
+    const acc = accSel.reduce((sum, a) => {
+      return sum + Number(a.pvp || 0) * Number(a.unidades || 0);
+    }, 0);
     setAccTotal(+acc.toFixed(2));
 
-    const subtotal = baseImporte + acc;
-    const tot = applyDiscount(subtotal, descuento);
+    // Subtotal y total con descuento
+    const subtotal = pBase + (incrementoColor * areaM2) + acc;
+    const desc = subtotal * (descuento / 100);
+    const tot = subtotal - desc;
     setTotal(+tot.toFixed(2));
-  }, [alto, ancho, precioM2, accSel, descuento]);
+  }, [alto, ancho, precioM2, incrementoColor, accSel, descuento]);
 
   /* ================== HANDLERS ================== */
   const onSetAccUnidades = (acc, value) => {
@@ -201,9 +220,7 @@ export default function ConfigPanos() {
 
       if (found) {
         return prev
-          .map((x) =>
-            x.id === acc.id ? { ...x, unidades: uds } : x
-          )
+          .map((x) => (x.id === acc.id ? { ...x, unidades: uds } : x))
           .filter((x) => (x.unidades || 0) > 0);
       }
 
@@ -211,98 +228,71 @@ export default function ConfigPanos() {
     });
   };
 
-  const modeloSel = useMemo(
-    () => modelos.find((m) => m.id === modeloId),
-    [modelos, modeloId]
-  );
-  const acabadoSel = useMemo(
-    () => acabados.find((a) => a.id === acabadoId),
-    [acabados, acabadoId]
-  );
-
   /* ================== GUARDAR ================== */
   async function guardar() {
     setSaving(true);
     setMsg("");
 
     try {
-      console.log("===== GUARDAR PRESUPUESTO PAÑOS =====");
-      console.log("[session]", session?.user?.id);
-      console.log("[profile]", profile);
-
       if (!session?.user?.id) {
-        console.warn("[guardar] no hay sesión");
-        router.push("/");
+        router.push("/login?m=login-required");
         return;
       }
 
-      if (!modeloId || !acabadoId || !alto || !ancho) {
-        console.warn("[guardar] faltan datos", { modeloId, acabadoId, alto, ancho });
-        setMsg("⚠️ Completa modelo, acabado y medidas.");
+      if (!modeloId || !colorId || !alto || !ancho) {
+        setMsg("⚠️ Completa todos los campos requeridos.");
         return;
       }
 
       if (precioM2 === null) {
-        console.warn("[guardar] precio no disponible");
         setMsg("⚠️ No hay precio disponible para esta combinación. Contacta con administración.");
         return;
       }
 
-      const subtotalCalc = Number(base) + Number(accTotal);
-      const acabadoNombre = acabadoSel?.nombre || null;
+      const altoM = Number(alto) / 1000;
+      const anchoM = Number(ancho) / 1000;
+      const areaM2 = altoM * anchoM;
+      const precioColorTotal = incrementoColor * areaM2;
+      const subtotal = Number(precioBase) + Number(precioColorTotal) + Number(accTotal);
 
-      // 🔥 PAYLOAD con alto_mm y ancho_mm (igual que mosquiteras)
       const payload = {
         user_id: session.user.id,
         cliente: profile?.usuario || "",
         email: profile?.email || "",
         cif: profile?.cif || null,
-        tipo: `paño-${tipo || "completo"}`,
-        alto_mm: Number(alto), // 🔥 CAMBIADO
-        ancho_mm: Number(ancho), // 🔥 CAMBIADO
-        medida_precio: Number(base),
-        color: acabadoNombre,
-        color_precio: 0,
+        tipo: `proteccion-solar-${tipo}`,
+        alto_mm: Number(alto),
+        ancho_mm: Number(ancho),
+        medida_precio: Number(precioBase),
+        color: colorSel?.nombre || null,
+        color_precio: Number(precioColorTotal),
         accesorios: accSel.map((a) => ({
           id: a.id,
           nombre: a.nombre,
           unidades: Number(a.unidades || 0),
           precio_unit: Number(a.pvp || 0),
         })),
-        subtotal: Number(subtotalCalc),
+        subtotal: Number(subtotal),
         descuento_cliente: Number(descuento),
         total: Number(total),
         pagado: false,
       };
 
-      console.log("[payload json] >>>");
-      console.log(JSON.stringify(payload, null, 2));
-
-      const { data, error, status } = await supabase
+      const { data, error } = await supabase
         .from("presupuestos")
         .insert([payload])
         .select("id")
         .maybeSingle();
 
-      console.log("[insert presupuestos] status:", status);
-      console.log("[insert presupuestos] data:", data);
-
       if (error) {
-        console.error("[insert presupuestos] error:", error);
-        console.error("[insert detalles]", {
-          code: error?.code,
-          details: error?.details,
-          hint: error?.hint,
-          message: error?.message,
-        });
-        setMsg(`❌ No se pudo guardar el presupuesto: ${error.message || "error desconocido"}`);
+        console.error("[insert presupuesto]", error);
+        setMsg(`❌ No se pudo guardar: ${error.message}`);
         return;
       }
 
       setMsg("✅ Presupuesto guardado correctamente.");
-      setTimeout(() => router.push("/pedidos"), 2000);
     } catch (e) {
-      console.error("💥 [guardarPresupuesto] exception:", e);
+      console.error("[guardar exception]", e);
       setMsg(`❌ Error inesperado: ${e?.message || e}`);
     } finally {
       setSaving(false);
@@ -313,19 +303,16 @@ export default function ConfigPanos() {
   return (
     <>
       <Head>
-        <title>Configurar Paño · PresuProsol</title>
+        <title>Configurar {tituloTipo} · PresuProsol</title>
       </Head>
-
       <Header />
 
       <main className="container py-4" style={{ maxWidth: 980 }}>
         <div className="d-flex align-items-center justify-content-between mb-3">
-          <h1 className="h4 m-0">
-            Configurar {tipo === "lamas" ? "lamas sueltas" : "paño completo"}
-          </h1>
+          <h1 className="h4 m-0">{tituloTipo}</h1>
           <button
             className="btn btn-outline-secondary"
-            onClick={() => router.push("/panos")}
+            onClick={() => router.push("/proteccion-solar")}
           >
             ← Volver
           </button>
@@ -343,51 +330,39 @@ export default function ConfigPanos() {
                   onChange={(e) => setModeloId(e.target.value)}
                 >
                   <option value="">Selecciona modelo…</option>
-                  {["perfilado", "extrusionado", "pvc", "enrollable"].map(
-                    (t) => {
-                      const group = modelos.filter(
-                        (m) => m.tipo === t
-                      );
-                      if (!group.length) return null;
-                      return (
-                        <optgroup key={t} label={t.toUpperCase()}>
-                          {group.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.nombre}
-                            </option>
-                          ))}
-                        </optgroup>
-                      );
-                    }
-                  )}
+                  {modelos.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nombre}
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              {/* Acabado */}
+              {/* Color estructura */}
               <div className="col-12 col-md-6">
-                <label className="form-label">Acabado</label>
+                <label className="form-label">Color estructura</label>
                 <select
                   className="form-select"
-                  value={acabadoId}
-                  onChange={(e) => setAcabadoId(e.target.value)}
+                  value={colorId}
+                  onChange={(e) => setColorId(e.target.value)}
                 >
-                  <option value="">Selecciona acabado…</option>
-                  {acabados.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nombre}
+                  <option value="">Selecciona color…</option>
+                  {colores.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nombre} {incrementoColor > 0 && `(+${incrementoColor.toFixed(2)} €/m²)`}
                     </option>
                   ))}
                 </select>
 
-                {precioM2 === null && modeloId && acabadoId && (
+                {precioM2 === null && modeloId && colorId && (
                   <small className="text-danger d-block mt-1">
                     Precio: consultar
                   </small>
                 )}
 
-                {precioM2 != null && modeloId && acabadoId && (
+                {precioM2 !== null && modeloId && colorId && (
                   <small className="text-muted d-block mt-1">
-                    Precio: {Number(precioM2).toFixed(2)} €/m²
+                    Precio base: {Number(precioM2).toFixed(2)} €/m²
                   </small>
                 )}
               </div>
@@ -416,27 +391,17 @@ export default function ConfigPanos() {
 
               {/* Accesorios */}
               <div className="col-12">
-                <label className="form-label d-block">
-                  Accesorios
-                </label>
+                <label className="form-label d-block">Accesorios</label>
                 <div className="row g-2">
                   {accesorios.map((a) => {
-                    const sel =
-                      accSel.find((x) => x.id === a.id)?.unidades ||
-                      0;
+                    const sel = accSel.find((x) => x.id === a.id)?.unidades || 0;
                     return (
-                      <div
-                        className="col-12 col-md-6"
-                        key={a.id}
-                      >
+                      <div className="col-12 col-md-6" key={a.id}>
                         <div className="d-flex align-items-center justify-content-between border rounded p-2">
                           <div>
-                            <div className="fw-semibold">
-                              {a.nombre}
-                            </div>
+                            <div className="fw-semibold">{a.nombre}</div>
                             <small className="text-muted">
-                              {Number(a.pvp || 0).toFixed(2)} € /{" "}
-                              {a.unidad}
+                              {Number(a.pvp || 0).toFixed(2)} € / {a.unidad}
                             </small>
                           </div>
                           <div style={{ minWidth: 120 }}>
@@ -446,12 +411,7 @@ export default function ConfigPanos() {
                               step={1}
                               className="form-control"
                               value={sel}
-                              onChange={(e) =>
-                                onSetAccUnidades(
-                                  a,
-                                  e.target.value
-                                )
-                              }
+                              onChange={(e) => onSetAccUnidades(a, e.target.value)}
                             />
                           </div>
                         </div>
@@ -462,10 +422,7 @@ export default function ConfigPanos() {
 
                 {accSel.length > 0 && (
                   <small className="text-muted d-block mt-2">
-                    💡 Total accesorios:{" "}
-                    <strong>
-                      {accTotal.toFixed(2)} €
-                    </strong>
+                    💡 Total accesorios: <strong>{accTotal.toFixed(2)} €</strong>
                   </small>
                 )}
               </div>
@@ -475,16 +432,15 @@ export default function ConfigPanos() {
                 <hr />
                 <div className="d-flex flex-column gap-2">
                   <div className="d-flex justify-content-between">
-                    <span>Área:</span>
-                    <strong>{areaM2.toFixed(3)} m²</strong>
-                  </div>
-                  <div className="d-flex justify-content-between">
                     <span>Precio base:</span>
-                    <strong>
-                      {base.toFixed(2)} €
-                      {precioM2 === null && " (consultar)"}
-                    </strong>
+                    <strong>{precioBase.toFixed(2)} €</strong>
                   </div>
+                  {incrementoColor > 0 && (
+                    <div className="d-flex justify-content-between">
+                      <span>Incremento color:</span>
+                      <strong>{(incrementoColor * (Number(alto) * Number(ancho) / 1000000)).toFixed(2)} €</strong>
+                    </div>
+                  )}
                   <div className="d-flex justify-content-between">
                     <span>Accesorios:</span>
                     <strong>{accTotal.toFixed(2)} €</strong>
@@ -506,9 +462,7 @@ export default function ConfigPanos() {
               {msg && (
                 <div
                   className={`col-12 alert ${
-                    msg.startsWith("✅")
-                      ? "alert-success"
-                      : "alert-warning"
+                    msg.startsWith("✅") ? "alert-success" : "alert-warning"
                   } mb-0`}
                 >
                   {msg}
@@ -518,12 +472,16 @@ export default function ConfigPanos() {
               <div className="col-12">
                 <button
                   className="btn w-100"
-                  style={{ background: "var(--accent)", color: "var(--surface)", fontWeight: 600 }}
+                  style={{
+                    background: "var(--accent)",
+                    color: "var(--surface)",
+                    fontWeight: 600,
+                  }}
                   onClick={guardar}
                   disabled={
                     saving ||
                     !modeloId ||
-                    !acabadoId ||
+                    !colorId ||
                     !alto ||
                     !ancho ||
                     precioM2 === null

@@ -1,31 +1,33 @@
 // src/components/MosqTypeCard.jsx
+import Image from "next/image";
+
 export default function MosqTypeCard({ title, imgSrc, onClick }) {
   return (
-    <div className="card h-100 shadow-sm border-0 rounded-4 mosq-card">
-      {/* Imagen con ratio 4:3 para uniformidad */}
-      <div className="ratio ratio-4x3 position-relative rounded-top-4 overflow-hidden">
-        {/* Usa <img> para aprovechar el ratio Bootstrap sin layout shifts */}
-        <img
+    <div className="card h-100 shadow-sm">
+      <div className="ratio ratio-16x9">
+        <Image
           src={imgSrc}
           alt={title}
-          className="w-100 h-100"
-          style={{ objectFit: "cover", transform: "scale(1)", transition: "transform .35s ease" }}
-          onError={(e) => (e.currentTarget.src = "/assets/avatar.jpg")}
+          fill
+          sizes="(max-width: 768px) 100vw, 480px"
+          style={{ objectFit: "cover", borderTopLeftRadius: 8, borderTopRightRadius: 8 }}
         />
       </div>
-
-      <div className="card-body">
+      <div className="card-body d-flex flex-column">
         <h3 className="h6 mb-3">{title}</h3>
-        <button type="button" className="btn btn-warning fw-semibold px-3" onClick={onClick}>
+        <button
+          className="btn mt-auto"
+          onClick={onClick}
+          style={{
+            background: "var(--accent)",
+            color: "var(--surface)",
+            fontWeight: 600,
+            border: "none",
+          }}
+        >
           Configurar
         </button>
       </div>
-
-      <style jsx>{`
-        .mosq-card:hover img {
-          transform: scale(1.04);
-        }
-      `}</style>
     </div>
   );
 }
