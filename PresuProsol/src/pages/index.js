@@ -203,7 +203,7 @@ export default function Home() {
               <h3 className={styles.h3}>Puertas de garaje</h3>
               <button
                 className={styles.seeMore}
-                onClick={() => handleProtectedClick("/catalogo")}
+                onClick={() => handleProtectedClick("/puertas-seccionales")}
               >
                 Ver más
               </button>
@@ -223,7 +223,7 @@ export default function Home() {
               <h3 className={styles.h3}>Pérgola bioclimática</h3>
               <button
                 className={styles.seeMore}
-                onClick={() => handleProtectedClick("/catalogo")}
+                onClick={() => handleProtectedClick("/pergolas")}
               >
                 Ver más
               </button>

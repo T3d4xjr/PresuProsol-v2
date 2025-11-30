@@ -67,7 +67,6 @@ const slugImg = (txt = "") =>
 
 /* ============ Colores (UI) ============ */
 
-// Valor por nombre si no hay HEX en BD
 function guessHexFromName(nombre = "") {
   const n = (nombre || "").toLowerCase();
   if (/blanco/.test(n)) return "#FFFFFF";
@@ -75,10 +74,9 @@ function guessHexFromName(nombre = "") {
   if (/bronce/.test(n)) return "#8C6239";
   if (/ral\s*est[aá]ndar/.test(n)) return "#4F4F4F";
   if (/ral\s*especial/.test(n)) return "#7C3AED";
-  return "#2D2A6E"; // fallback (primary)
+  return "#2D2A6E";
 }
 
-// Normaliza y valida un hex (añade # si falta)
 function normalizeHex(v) {
   if (!v) return null;
   let s = String(v).trim();
@@ -88,11 +86,21 @@ function normalizeHex(v) {
   return ok ? s.toUpperCase() : null;
 }
 
-/* ============ Página ============ */
+/* ============ Componente Principal ============ */
 
-export default function ConfigMosquitera() {
+export default function ConfigMosquitera({
+  datosIniciales = null,
+  onSubmit = null,
+  guardando = false,
+  modoEdicion = false,
+  tipoOverride = null,
+}) {
   const router = useRouter();
-  const { tipo } = router.query;
+  const { tipo: tipoQuery } = router.query;
+
+  // Usar tipoOverride si existe (modo edición), sino usar query
+  const tipo = tipoOverride || tipoQuery;
+
   const { session, profile, loading } = useAuth();
 
   // Datos
@@ -104,8 +112,8 @@ export default function ConfigMosquitera() {
   // Selección
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
-  const [colorId, setColorId] = useState(""); // comparar como string siempre
-  const [accSel, setAccSel] = useState([]); // [{id,nombre,precio_unit,unidades}]
+  const [colorId, setColorId] = useState("");
+  const [accSel, setAccSel] = useState([]);
 
   // Precios
   const [precioBase, setPrecioBase] = useState(0);
@@ -119,9 +127,10 @@ export default function ConfigMosquitera() {
 
   /* 🔒 Protección */
   useEffect(() => {
-    console.log("[auth] loading:", loading, "session:", session);
-    if (!loading && !session) router.replace("/login?m=login-required");
-  }, [loading, session, router]);
+    if (!loading && !session && !modoEdicion) {
+      router.replace("/login?m=login-required");
+    }
+  }, [loading, session, router, modoEdicion]);
 
   /* 📏 Cargar medidas */
   useEffect(() => {
@@ -138,13 +147,19 @@ export default function ConfigMosquitera() {
       setAltos(uniqueAltos);
       setAnchos(uniqueAnchos);
     };
-    loadMedidas();
-  }, []);
+
+    if (tipo || modoEdicion) {
+      loadMedidas();
+    }
+  }, [tipo, modoEdicion]);
 
   /* 🎨 + 🧰 Cargar colores y accesorios */
   useEffect(() => {
     const loadOptions = async () => {
       try {
+        console.log("📦 [CARGANDO CATÁLOGO] tipo:", tipo);
+        console.log("   modoEdicion:", modoEdicion);
+
         const { data: col, error: colErr, status: colStatus } = await supabase
           .from("mosq_colores")
           .select("id, color, precio, activo, hex");
@@ -161,6 +176,7 @@ export default function ConfigMosquitera() {
               hex: hexNorm,
             };
           });
+        console.log("✅ [COLORES CARGADOS]:", coloresNorm.length);
         console.table(coloresNorm);
         setColores(coloresNorm);
 
@@ -178,16 +194,20 @@ export default function ConfigMosquitera() {
             perimetral: Boolean(a.perimetral),
             precio_unit: Number(a.precio_unit ?? a.precio ?? a.precio_ud ?? 0),
           }));
+        console.log("✅ [ACCESORIOS CARGADOS]:", accesoriosNorm.length);
         console.table(accesoriosNorm);
         setAccesorios(accesoriosNorm);
       } catch (e) {
         console.error("💥 loadOptions exception:", e);
       }
     };
-    loadOptions();
-  }, []);
 
-  /* 🎟️ Descuento cliente (robusto) */
+    if (tipo || modoEdicion) {
+      loadOptions();
+    }
+  }, [tipo, modoEdicion]);
+
+  /* 🎟️ Descuento cliente */
   useEffect(() => {
     const loadDesc = async () => {
       const uid = session?.user?.id;
@@ -221,6 +241,73 @@ export default function ConfigMosquitera() {
 
     loadDesc();
   }, [session?.user?.id]);
+
+  /* ================== CARGAR DATOS INICIALES EN MODO EDICIÓN ================== */
+  useEffect(() => {
+    if (!datosIniciales || !modoEdicion) return;
+
+    console.log("📝 [MODO EDICIÓN MOSQUITERA] Cargando datos iniciales:", datosIniciales);
+
+    // Cargar medidas
+    if (datosIniciales.alto_mm) {
+      console.log("   → Alto:", datosIniciales.alto_mm);
+      setAlto(datosIniciales.alto_mm.toString());
+    }
+    if (datosIniciales.ancho_mm) {
+      console.log("   → Ancho:", datosIniciales.ancho_mm);
+      setAncho(datosIniciales.ancho_mm.toString());
+    }
+
+    // Cargar accesorios
+    if (datosIniciales.accesorios && Array.isArray(datosIniciales.accesorios)) {
+      console.log("   → Accesorios:", datosIniciales.accesorios.length);
+      setAccSel(datosIniciales.accesorios);
+    }
+
+    // Cargar precio base
+    if (datosIniciales.medida_precio) {
+      console.log("   → Precio base:", datosIniciales.medida_precio);
+      setPrecioBase(Number(datosIniciales.medida_precio));
+    }
+
+    // Cargar incremento color
+    if (datosIniciales.color_precio) {
+      console.log("   → Incremento color:", datosIniciales.color_precio);
+      setIncColor(Number(datosIniciales.color_precio));
+    }
+
+    // Cargar descuento
+    if (datosIniciales.descuento_cliente && descuento === 0) {
+      console.log("   → Descuento inicial:", datosIniciales.descuento_cliente);
+      setDescuento(Number(datosIniciales.descuento_cliente));
+    }
+  }, [datosIniciales, modoEdicion, descuento]);
+
+  /* ================== ENCONTRAR COLOR POR NOMBRE ================== */
+  useEffect(() => {
+    if (!datosIniciales || !modoEdicion) return;
+    if (colores.length === 0) {
+      console.log("⏸️ [MODO EDICIÓN MOSQUITERA] Esperando colores...");
+      return;
+    }
+
+    console.log("🔍 [MODO EDICIÓN MOSQUITERA] Buscando color...");
+    console.log("   Color guardado:", datosIniciales.color);
+
+    if (datosIniciales.color && !colorId) {
+      const colorEncontrado = colores.find(
+        (c) => c.nombre.toLowerCase() === datosIniciales.color.toLowerCase()
+      );
+
+      if (colorEncontrado) {
+        console.log("✅ Color encontrado:", colorEncontrado);
+        setColorId(String(colorEncontrado.id));
+      } else {
+        console.warn("⚠️ No se encontró color:", datosIniciales.color);
+        console.log("   Colores disponibles:", colores.map((c) => c.nombre));
+      }
+    }
+  }, [datosIniciales, modoEdicion, colores, colorId]);
 
   const colorActual = useMemo(
     () => colores.find((c) => String(c.id) === String(colorId)),
@@ -316,8 +403,36 @@ export default function ConfigMosquitera() {
     return `/assets/mosquiteras/accesorios/${key}.png`;
   };
 
-  /* 💾 Guardar presupuesto — con LOGS DETALLADOS */
+  /* 💾 Guardar presupuesto */
   async function guardarPresupuesto() {
+    // MODO EDICIÓN: usar callback
+    if (modoEdicion && onSubmit) {
+      const datosPresupuesto = {
+        cliente: profile?.usuario || datosIniciales?.cliente || "",
+        email: profile?.email || datosIniciales?.email || "",
+        cif: profile?.cif || datosIniciales?.cif || null,
+        alto_mm: Number(alto),
+        ancho_mm: Number(ancho),
+        color: colorActual?.nombre || null,
+        medida_precio: Number(precioBase),
+        color_precio: Number(incColor),
+        accesorios: accSel.map((a) => ({
+          id: a.id,
+          nombre: a.nombre,
+          unidades: Number(a.unidades || 0),
+          precio_unit: Number(a.precio_unit || 0),
+        })),
+        subtotal: Number(precioBase + incColor + accTotal),
+        descuento_cliente: Number(descuento),
+        total: Number(total),
+      };
+
+      console.log("💾 [MODO EDICIÓN MOSQUITERA] Enviando datos:", datosPresupuesto);
+      onSubmit(datosPresupuesto);
+      return;
+    }
+
+    // MODO NORMAL: guardar nuevo presupuesto
     setSaving(true);
     setMsg("");
     try {
@@ -344,26 +459,22 @@ export default function ConfigMosquitera() {
         cliente: profile?.usuario || "",
         email: profile?.email || "",
         cif: profile?.cif || null,
-
-        tipo: (tipo || "").toString(),
-
+        tipo: `mosquitera-${tipo || ""}`,
         alto_mm: Number(alto),
         ancho_mm: Number(ancho),
-
         medida_precio: Number(precioBase),
         color: colorNombre,
         color_precio: Number(incColor),
-
         accesorios: accSel.map((a) => ({
           id: a.id,
           nombre: a.nombre,
           unidades: Number(a.unidades || 0),
           precio_unit: Number(a.precio_unit || 0),
-        })), // jsonb
-
+        })),
         subtotal: Number(subtotalCalc),
         descuento_cliente: Number(descuento),
         total: Number(total),
+        pagado: false,
       };
 
       console.log("[payload json] >>>");
@@ -379,17 +490,15 @@ export default function ConfigMosquitera() {
       console.log("[insert presupuestos] data:", data);
       if (error) {
         console.error("[insert presupuestos] error:", error);
-        console.error("[insert detalles]", {
-          code: error?.code,
-          details: error?.details,
-          hint: error?.hint,
-          message: error?.message,
-        });
         setMsg(`❌ No se pudo guardar el presupuesto: ${error.message || "error desconocido"}`);
         return;
       }
 
       setMsg("✅ Presupuesto guardado correctamente.");
+
+      setTimeout(() => {
+        router.push("/mis-presupuestos");
+      }, 1500);
     } catch (e) {
       console.error("💥 [guardarPresupuesto] exception:", e);
       setMsg(`❌ Error inesperado: ${e?.message || e}`);
@@ -403,17 +512,19 @@ export default function ConfigMosquitera() {
       <Head>
         <title>{`Configurar Mosquitera ${tipo || ""} · PresuProsol`}</title>
       </Head>
-      <Header />
+      {!modoEdicion && <Header />}
 
-      <main className="container py-5" style={{ maxWidth: 1024 }}>
-        <div className="d-flex align-items-center justify-content-between mb-4">
-          <h1 className="h4 m-0" style={{ color: "var(--primary)" }}>
-            Configurar mosquitera {tipo ? `· ${tipo}` : ""}
-          </h1>
-          <button className="btn btn-outline-secondary" onClick={() => router.push("/mosquiteras")}>
-            ← Volver
-          </button>
-        </div>
+      <main className={`container ${!modoEdicion ? 'py-5' : ''}`} style={{ maxWidth: 1024 }}>
+        {!modoEdicion && (
+          <div className="d-flex align-items-center justify-content-between mb-4">
+            <h1 className="h4 m-0" style={{ color: "var(--primary)" }}>
+              Configurar mosquitera {tipo ? `· ${tipo}` : ""}
+            </h1>
+            <button className="btn btn-outline-secondary" onClick={() => router.push("/mosquiteras")}>
+              ← Volver
+            </button>
+          </div>
+        )}
 
         <div className="card shadow-sm" style={{ borderRadius: 16 }}>
           <div className="card-body p-4">
@@ -547,25 +658,44 @@ export default function ConfigMosquitera() {
                 <hr />
                 <div className="d-flex flex-column gap-2">
                   <div className="d-flex justify-content-between">
-                    <span>Precio base:</span>
-                    <strong>{precioBase.toFixed(2)} €</strong>
+                    <span className="text-muted">Precio base:</span>
+                    <strong className="text-muted">{precioBase.toFixed(2)} €</strong>
                   </div>
                   <div className="d-flex justify-content-between">
-                    <span>Color:</span>
-                    <strong>{incColor.toFixed(2)} €</strong>
+                    <span className="text-muted">Color:</span>
+                    <strong className="text-muted">{incColor.toFixed(2)} €</strong>
                   </div>
                   <div className="d-flex justify-content-between">
-                    <span>Accesorios:</span>
-                    <strong>{accTotal.toFixed(2)} €</strong>
+                    <span className="text-muted">Accesorios:</span>
+                    <strong className="text-muted">{accTotal.toFixed(2)} €</strong>
                   </div>
-                  <div className="d-flex justify-content-between">
-                    <span>Descuento cliente:</span>
-                    <strong>{descuento}%</strong>
-                  </div>
+
+                  {descuento > 0 && (
+                    <>
+                      <div className="d-flex justify-content-between">
+                        <span className="text-muted">Subtotal:</span>
+                        <strong className="text-muted">{(precioBase + incColor + accTotal).toFixed(2)} €</strong>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="text-muted">Descuento ({descuento}%):</span>
+                        <strong className="text-muted text-danger">
+                          -{((precioBase + incColor + accTotal) * (descuento / 100)).toFixed(2)} €
+                        </strong>
+                      </div>
+                    </>
+                  )}
+
+                  {descuento === 0 && (
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted">Descuento cliente:</span>
+                      <strong className="text-muted">{descuento}%</strong>
+                    </div>
+                  )}
+
                   <hr />
                   <div className="d-flex justify-content-between fs-4">
-                    <span>TOTAL:</span>
-                    <strong style={{ color: "var(--accent)" }}>{total.toFixed(2)} €</strong>
+                    <span className="fw-bold">TOTAL:</span>
+                    <strong className="fw-bold" style={{ color: "#198754" }}>{total.toFixed(2)} €</strong>
                   </div>
                 </div>
               </div>
@@ -581,9 +711,16 @@ export default function ConfigMosquitera() {
                   className="btn w-100"
                   style={{ background: "var(--accent)", color: "var(--surface)", fontWeight: 600 }}
                   onClick={guardarPresupuesto}
-                  disabled={saving || !alto || !ancho || !precioBase}
+                  disabled={saving || guardando || !alto || !ancho || !precioBase}
                 >
-                  {saving ? "⏳ Guardando…" : "💾 Guardar presupuesto"}
+                  {(saving || guardando) ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      {modoEdicion ? "Actualizando…" : "Guardando…"}
+                    </>
+                  ) : (
+                    <>{modoEdicion ? "💾 Guardar Cambios" : "💾 Guardar presupuesto"}</>
+                  )}
                 </button>
               </div>
             </div>
@@ -591,7 +728,7 @@ export default function ConfigMosquitera() {
         </div>
       </main>
 
-      <Footer />
+      {!modoEdicion && <Footer />}
     </>
   );
 }

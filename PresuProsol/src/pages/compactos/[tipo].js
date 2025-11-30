@@ -7,9 +7,61 @@ import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function ConfigCompacto() {
+// MAPEO DE IMÁGENES DE ACCESORIOS
+const ACCESORIO_IMAGENES = {
+  "capsulaAluminio.png": "capsulaAluminio.png",
+  "capsulaDiagonal.png": "capsulaDiagonal.png",
+  "capsulaPlastico.png": "capsulaPlastico.png",
+  "discoPlastico.png": "discoPlastico.png",
+};
+
+// Función para obtener la imagen del accesorio
+const getAccesorioImagen = (nombreAccesorio) => {
+  console.log("🔍 [getAccesorioImagen] Buscando imagen para:", nombreAccesorio);
+
+  if (!nombreAccesorio) return null;
+
+  const nombre = nombreAccesorio.toLowerCase();
+  console.log("   → nombre normalizado:", nombre);
+
+  if (nombre.includes("capsula") && nombre.includes("aluminio")) {
+    console.log("   ✅ Match: capsulaAluminio.png");
+    return "/assets/persianasCompacto/accesorios/capsulaAluminio.png";
+  }
+  if (nombre.includes("capsula") && nombre.includes("diagonal")) {
+    console.log("   ✅ Match: capsulaDiagonal.png");
+    return "/assets/persianasCompacto/accesorios/capsulaDiagonal.png";
+  }
+  if (nombre.includes("capsula") && nombre.includes("plastico")) {
+    console.log("   ✅ Match: capsulaPlastico.png");
+    return "/assets/persianasCompacto/accesorios/capsulaPlastico.png";
+  }
+  if (nombre.includes("disco") && nombre.includes("plastico")) {
+    console.log("   ✅ Match: discoPlastico.png");
+    return "/assets/persianasCompacto/accesorios/discoPlastico.png";
+  }
+  if (nombre.includes("tubo") || nombre.includes("eje")) {
+    console.log("   ✅ Match: tuboEje.png");
+    return "/assets/persianasCompacto/accesorios/tuboEje.png";
+  }
+
+  console.log("   ❌ No match encontrado");
+  return null;
+};
+
+export default function ConfigCompacto({
+  datosIniciales = null,
+  onSubmit = null,
+  guardando = false,
+  modoEdicion = false,
+  tipoOverride = null,
+}) {
   const router = useRouter();
-  const { tipo } = router.query; // 'pvc' | 'aluminio'
+  const { tipo: tipoQuery } = router.query;
+  
+  // Usar tipoOverride si existe (modo edición), sino usar query
+  const tipo = tipoOverride || tipoQuery;
+  
   const { session, profile, loading } = useAuth();
 
   // Catálogo
@@ -17,11 +69,11 @@ export default function ConfigCompacto() {
   const [acabados, setAcabados] = useState([]);
   const [accesorios, setAccesorios] = useState([]);
 
-  // Selección
+  // Selección - INICIALIZAR con datosIniciales si existe
   const [modeloId, setModeloId] = useState("");
   const [acabadoId, setAcabadoId] = useState("");
-  const [alto, setAlto] = useState(""); // mm
-  const [ancho, setAncho] = useState(""); // mm
+  const [alto, setAlto] = useState("");
+  const [ancho, setAncho] = useState("");
   const [accSel, setAccSel] = useState([]);
 
   // Precios
@@ -41,7 +93,6 @@ export default function ConfigCompacto() {
       ? "Compacto cajón aluminio"
       : "Compacto";
 
-  // 🔥 MOVER AQUÍ: Calcular modeloSel y acabadoSel ANTES de los useEffect
   const modeloSel = useMemo(
     () => modelos.find((m) => m.id === modeloId),
     [modelos, modeloId]
@@ -62,55 +113,69 @@ export default function ConfigCompacto() {
   useEffect(() => {
     const load = async () => {
       try {
-        // MODELOS - sin RLS
+        console.log("📦 [CARGANDO CATÁLOGO] tipo:", tipo);
+        console.log("   modoEdicion:", modoEdicion);
+
+        // MODELOS - filtrados por tipo
         const { data: m, error: mErr } = await supabase
           .from("compactos_modelos")
           .select("*")
-          .eq("tipo", tipo || "aluminio");
+          .eq("activo", true)
+          .order("nombre");
 
         if (mErr) {
-          console.error("[compactos_modelos] error:", mErr);
+          console.error("❌ [compactos_modelos] error:", mErr);
           setModelos([]);
         } else {
-          // Filtrar activos en cliente
-          const activos = (m || []).filter((x) => x.activo === true);
-          setModelos(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+          console.log("✅ [MODELOS CARGADOS]:", m?.length);
+          console.table(m);
+          setModelos(m || []);
         }
 
-        // ACABADOS - sin RLS
+        // ACABADOS
         const { data: a, error: aErr } = await supabase
           .from("compactos_acabados")
-          .select("*");
+          .select("*")
+          .eq("activo", true)
+          .order("orden");
 
         if (aErr) {
-          console.error("[compactos_acabados] error:", aErr);
+          console.error("❌ [compactos_acabados] error:", aErr);
           setAcabados([]);
         } else {
-          // Filtrar activos y ordenar en cliente
-          const activos = (a || []).filter((x) => x.activo === true);
-          setAcabados(activos.sort((a, b) => (a.orden || 0) - (b.orden || 0)));
+          console.log("✅ [ACABADOS CARGADOS]:", a?.length);
+          console.table(a);
+          setAcabados(a || []);
         }
 
-        // ACCESORIOS - sin RLS
+        // ACCESORIOS
         const { data: acc, error: accErr } = await supabase
           .from("compactos_accesorios")
-          .select("*");
+          .select("*")
+          .eq("activo", true)
+          .order("nombre");
 
         if (accErr) {
-          console.error("[compactos_accesorios] error:", accErr);
+          console.error("❌ [compactos_accesorios] error:", accErr);
           setAccesorios([]);
         } else {
-          // Filtrar activos y ordenar en cliente
-          const activos = (acc || []).filter((x) => x.activo === true);
-          setAccesorios(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+          console.log("✅ [ACCESORIOS CARGADOS]:", acc?.length);
+          console.table(acc);
+          setAccesorios(acc || []);
         }
       } catch (e) {
-        console.error("[load catálogo] exception:", e);
+        console.error("❌ [load catálogo] exception:", e);
       }
     };
 
-    if (tipo) load();
-  }, [tipo]);
+    // CARGAR SIEMPRE - tanto en modo normal como edición
+    if (tipo || modoEdicion) {
+      console.log("🔄 Iniciando carga de catálogo...");
+      load();
+    } else {
+      console.log("⏸️ Esperando tipo o modo edición...");
+    }
+  }, [tipo, modoEdicion]); // IMPORTANTE: agregar modoEdicion como dependencia
 
   /* ================== DESCUENTO CLIENTE ================== */
   useEffect(() => {
@@ -120,18 +185,38 @@ export default function ConfigCompacto() {
       const uid = session.user.id;
 
       try {
-        const { data, error } = await supabase
+        console.log("[compactos descuento] buscando para auth_user_id:", uid);
+
+        const { data, error, status } = await supabase
           .from("administracion_usuarios")
           .select("id, auth_user_id, descuento, descuento_cliente")
           .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
           .maybeSingle();
 
-        if (error || !data) {
+        console.log(
+          "[compactos descuento] status:",
+          status,
+          "data:",
+          data,
+          "error:",
+          error
+        );
+
+        if (error) {
+          console.warn("[compactos descuento] error:", error);
+          setDescuento(0);
+          return;
+        }
+
+        if (!data) {
+          console.warn("[compactos descuento] no se encontró usuario");
           setDescuento(0);
           return;
         }
 
         const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
+        console.log("[compactos descuento] aplicado =", pct, "%");
+
         setDescuento(Number.isFinite(pct) ? pct : 0);
       } catch (e) {
         console.error("[compactos descuento] exception:", e);
@@ -155,28 +240,9 @@ export default function ConfigCompacto() {
         console.log("   modelo nombre:", modeloSel?.nombre);
         console.log("   acabado nombre:", acabadoSel?.nombre);
 
-        // Verificar QUÉ HAY en la tabla de precios
-        const { data: allPrecios, error: allErr } = await supabase
-          .from("compactos_guias_precios")
-          .select("*");
-
-        if (allErr) {
-          console.error("❌ [ERROR] No se puede leer compactos_guias_precios:", allErr);
-          return;
-        }
-
-        console.log("📊 [TABLA compactos_guias_precios] Total registros:", allPrecios?.length || 0);
-        
-        if (allPrecios && allPrecios.length > 0) {
-          console.table(allPrecios);
-        } else {
-          console.warn("⚠️ La tabla compactos_guias_precios está VACÍA");
-        }
-
-        // Buscar el precio específico
         const { data, error } = await supabase
           .from("compactos_guias_precios")
-          .select("*")
+          .select("precio_ml")
           .eq("modelo_id", modeloId)
           .eq("acabado_id", acabadoId)
           .maybeSingle();
@@ -188,14 +254,9 @@ export default function ConfigCompacto() {
         }
 
         if (!data) {
-          console.warn("⚠️ NO ENCONTRADO - Buscando combinación:");
+          console.warn("⚠️ NO ENCONTRADO precio para combinación:");
           console.warn("   modelo_id:", modeloId);
           console.warn("   acabado_id:", acabadoId);
-          console.warn("💡 SOLUCIÓN: Inserta este registro en Supabase:");
-          console.log(`
-INSERT INTO compactos_guias_precios (modelo_id, acabado_id, precio_ml)
-VALUES ('${modeloId}', '${acabadoId}', 15.00);
-          `);
           setPrecioGuiaMl(null);
         } else {
           console.log("✅ PRECIO ENCONTRADO:", data.precio_ml, "€/ml");
@@ -212,13 +273,22 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
 
   /* ================== CÁLCULOS ================== */
   useEffect(() => {
-    // Convertir medidas a metros
-    const altoM = Number(alto || 0) / 1000;
-    const anchoM = Number(ancho || 0) / 1000;
-    const perimetroM = (altoM + anchoM) * 2;
+    // Convertimos a número de forma segura (acepta coma o punto)
+    const altoNum = alto ? parseFloat(String(alto).replace(",", ".")) : 0;
+    const anchoNum = ancho ? parseFloat(String(ancho).replace(",", ".")) : 0;
 
-    // Precio guías
-    const pGuias = precioGuiaMl !== null ? precioGuiaMl * perimetroM : 0;
+    const tieneMedidas =
+      altoNum > 0 && anchoNum > 0 && precioGuiaMl !== null && !isNaN(precioGuiaMl);
+
+    let pGuias = 0;
+
+    if (tieneMedidas) {
+      const altoM = altoNum / 1000;
+      const anchoM = anchoNum / 1000;
+      const perimetroM = (altoM + anchoM) * 2;
+      pGuias = precioGuiaMl * perimetroM;
+    }
+
     setPrecioGuias(+pGuias.toFixed(2));
 
     // Accesorios
@@ -232,6 +302,17 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
     const desc = subtotal * (descuento / 100);
     const tot = subtotal - desc;
     setTotal(+tot.toFixed(2));
+
+    console.log("[CÁLCULOS]", {
+      altoNum,
+      anchoNum,
+      precioGuiaMl,
+      pGuias,
+      acc,
+      subtotal,
+      desc,
+      tot,
+    });
   }, [alto, ancho, precioGuiaMl, accSel, descuento]);
 
   /* ================== HANDLERS ================== */
@@ -263,8 +344,100 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
     });
   };
 
+  /* ================== CARGAR DATOS INICIALES EN MODO EDICIÓN ================== */
+  useEffect(() => {
+    if (!datosIniciales || !modoEdicion) return;
+
+    console.log("📝 [MODO EDICIÓN] Cargando datos iniciales:", datosIniciales);
+
+    // Cargar medidas
+    if (datosIniciales.alto_mm) {
+      console.log("   → Alto:", datosIniciales.alto_mm);
+      setAlto(datosIniciales.alto_mm.toString());
+    }
+    if (datosIniciales.ancho_mm) {
+      console.log("   → Ancho:", datosIniciales.ancho_mm);
+      setAncho(datosIniciales.ancho_mm.toString());
+    }
+
+    // Cargar accesorios
+    if (datosIniciales.accesorios && Array.isArray(datosIniciales.accesorios)) {
+      console.log("   → Accesorios:", datosIniciales.accesorios.length);
+      setAccSel(datosIniciales.accesorios);
+    }
+
+    // Cargar descuento (solo si no viene del perfil)
+    if (datosIniciales.descuento_cliente && descuento === 0) {
+      console.log("   → Descuento inicial:", datosIniciales.descuento_cliente);
+      setDescuento(Number(datosIniciales.descuento_cliente));
+    }
+  }, [datosIniciales, modoEdicion, descuento]);
+
+  /* ================== ENCONTRAR MODELO Y ACABADO POR NOMBRE ================== */
+  useEffect(() => {
+    if (!datosIniciales || !modoEdicion) return;
+    if (modelos.length === 0 || acabados.length === 0) {
+      console.log("⏸️ [MODO EDICIÓN] Esperando catálogos...");
+      console.log("   Modelos:", modelos.length, "Acabados:", acabados.length);
+      return;
+    }
+
+    console.log("🔍 [MODO EDICIÓN] Buscando modelo y acabado...");
+    console.log("   Color guardado:", datosIniciales.color);
+    console.log("   Tipo presupuesto:", datosIniciales.tipo);
+
+    // Buscar acabado por nombre (guardado en color)
+    if (datosIniciales.color && !acabadoId) {
+      const acabadoEncontrado = acabados.find(
+        a => a.nombre.toLowerCase() === datosIniciales.color.toLowerCase()
+      );
+      
+      if (acabadoEncontrado) {
+        console.log("✅ Acabado encontrado:", acabadoEncontrado);
+        setAcabadoId(acabadoEncontrado.id);
+      } else {
+        console.warn("⚠️ No se encontró acabado:", datosIniciales.color);
+        console.log("   Acabados disponibles:", acabados.map(a => a.nombre));
+      }
+    }
+
+    // Si no hay un modelo específico guardado, seleccionar el primero disponible
+    if (modelos.length > 0 && !modeloId) {
+      console.log("ℹ️ Seleccionando primer modelo disponible:", modelos[0].nombre);
+      setModeloId(modelos[0].id);
+    }
+
+  }, [datosIniciales, modoEdicion, modelos, acabados, modeloId, acabadoId]);
+
   /* ================== GUARDAR ================== */
   async function guardar() {
+    // MODO EDICIÓN: usar callback
+    if (modoEdicion && onSubmit) {
+      const datosPresupuesto = {
+        cliente: profile?.usuario || datosIniciales?.cliente || "",
+        email: profile?.email || datosIniciales?.email || "",
+        cif: profile?.cif || datosIniciales?.cif || null,
+        alto_mm: Number(alto),
+        ancho_mm: Number(ancho),
+        color: acabadoSel?.nombre || null,
+        medida_precio: Number(precioGuias),
+        accesorios: accSel.map((a) => ({
+          id: a.id,
+          nombre: a.nombre,
+          unidades: Number(a.unidades || 0),
+          precio_unit: Number(a.pvp || 0),
+        })),
+        subtotal: Number(precioGuias + accTotal),
+        descuento_cliente: Number(descuento),
+        total: Number(total),
+      };
+
+      console.log("💾 [MODO EDICIÓN] Enviando datos:", datosPresupuesto);
+      onSubmit(datosPresupuesto);
+      return;
+    }
+
+    // MODO NORMAL: guardar nuevo presupuesto
     setSaving(true);
     setMsg("");
 
@@ -276,11 +449,15 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
 
       if (!modeloId || !acabadoId || !alto || !ancho) {
         setMsg("⚠️ Completa todos los campos requeridos.");
+        setSaving(false);
         return;
       }
 
       if (precioGuiaMl === null) {
-        setMsg("⚠️ No hay precio disponible para esta combinación. Contacta con administración.");
+        setMsg(
+          "⚠️ No hay precio disponible para esta combinación. Contacta con administración."
+        );
+        setSaving(false);
         return;
       }
 
@@ -324,6 +501,10 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
       }
 
       setMsg("✅ Presupuesto guardado correctamente.");
+
+      setTimeout(() => {
+        router.push("/mis-presupuestos");
+      }, 1500);
     } catch (e) {
       console.error("[guardar exception]", e);
       setMsg(`❌ Error inesperado: ${e?.message || e}`);
@@ -336,31 +517,45 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
   return (
     <>
       <Head>
-        <title>Configurar {tituloTipo} · PresuProsol</title>
+        <title>Configurar Compacto Cajón {tipo?.toUpperCase()} · PresuProsol</title>
       </Head>
-      <Header />
+      
+      {/* Solo mostrar Header principal si NO está en modo edición */}
+      {!modoEdicion && <Header />}
 
-      <main className="container py-4" style={{ maxWidth: 980 }}>
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h1 className="h4 m-0">{tituloTipo}</h1>
-          <button
-            className="btn btn-outline-secondary"
-            onClick={() => router.push("/compactos")}
-          >
-            ← Volver
-          </button>
-        </div>
+      <main className={`container ${!modoEdicion ? 'py-5' : ''}`} style={{ maxWidth: 1024 }}>
+        {/* 🔥 ESTE ES EL HEADER SECUNDARIO - Solo mostrarlo si NO está en modo edición */}
+        {!modoEdicion && (
+          <div className="d-flex align-items-center justify-content-between mb-4">
+            <h1 className="h4 m-0" style={{ color: "var(--primary)" }}>
+              Compacto cajón {tipo?.toUpperCase()}
+            </h1>
+            <button
+              className="btn btn-outline-secondary"
+              onClick={() => router.push("/compactos")}
+            >
+              ← Volver
+            </button>
+          </div>
+        )}
 
-        <div className="card shadow-sm">
-          <div className="card-body">
-            <div className="row g-3">
+        <div className="card shadow-sm" style={{ borderRadius: 16 }}>
+          <div className="card-body p-4">
+            <div className="row g-4">
               {/* Modelo */}
               <div className="col-12 col-md-6">
                 <label className="form-label">Modelo de guía</label>
                 <select
                   className="form-select"
                   value={modeloId}
-                  onChange={(e) => setModeloId(e.target.value)}
+                  onChange={(e) => {
+                    console.log("🔄 Modelo seleccionado:", e.target.value);
+                    const modelo = modelos.find(
+                      (m) => m.id === e.target.value
+                    );
+                    console.log("   Datos del modelo:", modelo);
+                    setModeloId(e.target.value);
+                  }}
                 >
                   <option value="">Selecciona modelo…</option>
                   {modelos.map((m) => (
@@ -369,6 +564,9 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                     </option>
                   ))}
                 </select>
+                <small className="text-muted d-block mt-1">
+                  Total modelos: {modelos.length}
+                </small>
               </div>
 
               {/* Acabado */}
@@ -387,14 +585,26 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                   ))}
                 </select>
 
-                {precioGuiaMl === null && modeloId && acabadoId && (
+                {!modeloId && !acabadoId && (
+                  <small className="text-muted d-block mt-1">
+                    Selecciona modelo y acabado
+                  </small>
+                )}
+
+                {modeloId && !acabadoId && (
+                  <small className="text-muted d-block mt-1">
+                    Selecciona un acabado
+                  </small>
+                )}
+
+                {modeloId && acabadoId && precioGuiaMl === null && (
                   <small className="text-danger d-block mt-1">
                     Precio guías: consultar
                   </small>
                 )}
 
-                {precioGuiaMl !== null && modeloId && acabadoId && (
-                  <small className="text-muted d-block mt-1">
+                {modeloId && acabadoId && precioGuiaMl !== null && (
+                  <small className="text-success d-block mt-1 fw-semibold">
                     Precio guías: {Number(precioGuiaMl).toFixed(2)} €/ml
                   </small>
                 )}
@@ -422,30 +632,112 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                 />
               </div>
 
-              {/* Accesorios */}
+              {/* ACCESORIOS CON IMÁGENES */}
               <div className="col-12">
-                <label className="form-label d-block">Accesorios</label>
-                <div className="row g-2">
+                <label className="form-label d-block mb-3">Accesorios</label>
+                <div className="row g-3">
                   {accesorios.map((a) => {
-                    const sel = accSel.find((x) => x.id === a.id)?.unidades || 0;
+                    const sel =
+                      accSel.find((x) => x.id === a.id)?.unidades || 0;
+                    const imgSrc = getAccesorioImagen(a.nombre);
+
                     return (
-                      <div className="col-12 col-md-6" key={a.id}>
-                        <div className="d-flex align-items-center justify-content-between border rounded p-2">
-                          <div>
-                            <div className="fw-semibold">{a.nombre}</div>
-                            <small className="text-muted">
+                      <div className="col-12 col-md-6 col-lg-4" key={a.id}>
+                        <div
+                          className="card h-100 shadow-sm"
+                          style={{
+                            transition: "transform 0.2s, box-shadow 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform =
+                              "translateY(-2px)";
+                            e.currentTarget.style.boxShadow =
+                              "0 4px 12px rgba(0,0,0,0.15)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform =
+                              "translateY(0)";
+                            e.currentTarget.style.boxShadow =
+                              "0 2px 8px rgba(0,0,0,0.08)";
+                          }}
+                        >
+                          {/* Imagen */}
+                          {imgSrc && (
+                            <div
+                              style={{
+                                height: 180,
+                                overflow: "hidden",
+                                background: "#f8f9fa",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <img
+                                src={imgSrc}
+                                alt={a.nombre}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "contain",
+                                  padding: "0.5rem",
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          {/* Sin imagen */}
+                          {!imgSrc && (
+                            <div
+                              style={{
+                                height: 180,
+                                overflow: "hidden",
+                                background: "#f8f9fa",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 48,
+                                color: "#dee2e6",
+                              }}
+                            >
+                              📦
+                            </div>
+                          )}
+
+                          {/* Info y control */}
+                          <div className="card-body">
+                            <h6
+                              className="card-title mb-2"
+                              style={{ fontSize: 14, fontWeight: 600 }}
+                            >
+                              {a.nombre}
+                            </h6>
+                            <p
+                              className="text-muted mb-3"
+                              style={{ fontSize: 13 }}
+                            >
                               {Number(a.pvp || 0).toFixed(2)} € / {a.unidad}
-                            </small>
-                          </div>
-                          <div style={{ minWidth: 120 }}>
-                            <input
-                              type="number"
-                              min={0}
-                              step={1}
-                              className="form-control"
-                              value={sel}
-                              onChange={(e) => onSetAccUnidades(a, e.target.value)}
-                            />
+                            </p>
+
+                            <div className="d-flex align-items-center gap-2">
+                              <label
+                                className="form-label mb-0"
+                                style={{ fontSize: 13 }}
+                              >
+                                Unidades:
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                className="form-control form-control-sm"
+                                value={sel}
+                                onChange={(e) =>
+                                  onSetAccUnidades(a, e.target.value)
+                                }
+                                style={{ maxWidth: 80 }}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -454,9 +746,10 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                 </div>
 
                 {accSel.length > 0 && (
-                  <small className="text-muted d-block mt-2">
-                    💡 Total accesorios: <strong>{accTotal.toFixed(2)} €</strong>
-                  </small>
+                  <div className="alert alert-info mt-3 mb-0">
+                    Total accesorios:{" "}
+                    <strong>{accTotal.toFixed(2)} €</strong>
+                  </div>
                 )}
               </div>
 
@@ -465,21 +758,49 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                 <hr />
                 <div className="d-flex flex-column gap-2">
                   <div className="d-flex justify-content-between">
-                    <span>Precio guías:</span>
-                    <strong>{precioGuias.toFixed(2)} €</strong>
+                    <span className="text-muted">
+                      Precio guías{precioGuiaMl !== null ? ` (${precioGuiaMl.toFixed(2)} €/ml)` : ''}:
+                    </span>
+                    <strong className="text-muted">
+                      {precioGuias.toFixed(2)} €
+                    </strong>
                   </div>
+
                   <div className="d-flex justify-content-between">
-                    <span>Accesorios:</span>
-                    <strong>{accTotal.toFixed(2)} €</strong>
+                    <span className="text-muted">Accesorios:</span>
+                    <strong className="text-muted">
+                      {accTotal.toFixed(2)} €
+                    </strong>
                   </div>
-                  <div className="d-flex justify-content-between">
-                    <span>Descuento cliente:</span>
-                    <strong>{descuento}%</strong>
-                  </div>
+
+                  {descuento > 0 && (
+                    <>
+                      <div className="d-flex justify-content-between">
+                        <span className="text-muted">Subtotal:</span>
+                        <strong className="text-muted">
+                          {(precioGuias + accTotal).toFixed(2)} €
+                        </strong>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span className="text-muted">Descuento ({descuento}%):</span>
+                        <strong className="text-muted text-danger">
+                          -{((precioGuias + accTotal) * (descuento / 100)).toFixed(2)} €
+                        </strong>
+                      </div>
+                    </>
+                  )}
+
+                  {descuento === 0 && (
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted">Descuento cliente:</span>
+                      <strong className="text-muted">{descuento}%</strong>
+                    </div>
+                  )}
+
                   <hr />
                   <div className="d-flex justify-content-between fs-4">
-                    <span>TOTAL:</span>
-                    <strong style={{ color: "var(--accent)" }}>
+                    <span className="fw-bold">TOTAL:</span>
+                    <strong className="fw-bold" style={{ color: "#198754" }}>
                       {total.toFixed(2)} €
                     </strong>
                   </div>
@@ -496,6 +817,7 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                 </div>
               )}
 
+              {/* Botón final */}
               <div className="col-12">
                 <button
                   className="btn w-100"
@@ -506,7 +828,7 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                   }}
                   onClick={guardar}
                   disabled={
-                    saving ||
+                    (saving || guardando) ||
                     !modeloId ||
                     !acabadoId ||
                     !alto ||
@@ -514,7 +836,14 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
                     precioGuiaMl === null
                   }
                 >
-                  {saving ? "⏳ Guardando…" : "💾 Guardar presupuesto"}
+                  {(saving || guardando) ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      {modoEdicion ? "Actualizando…" : "Guardando…"}
+                    </>
+                  ) : (
+                    <>{modoEdicion ? "💾 Guardar Cambios" : "💾 Guardar presupuesto"}</>
+                  )}
                 </button>
               </div>
             </div>
@@ -522,7 +851,8 @@ VALUES ('${modeloId}', '${acabadoId}', 15.00);
         </div>
       </main>
 
-      <Footer />
+      {/* Solo mostrar Footer si NO está en modo edición */}
+      {!modoEdicion && <Footer />}
     </>
   );
 }

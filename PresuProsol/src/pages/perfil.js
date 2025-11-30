@@ -122,15 +122,43 @@ export default function Perfil() {
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h1>Mi perfil</h1>
 
-          {/* 🔐 Solo se muestra si el rol es admin */}
-          {profile?.rol === "admin" && (
+          <div className="d-flex gap-2">
+            {/* 📋 Mis Presupuestos - Todos los usuarios */}
             <button
-              onClick={() => router.push("/admin/usuarios")}
-              className="btn btn-outline-secondary"
+              onClick={() => router.push("/mis-presupuestos")}
+              className="btn btn-outline-primary"
             >
-              Administración
+              📋 Mis Presupuestos
             </button>
-          )}
+
+            {/* 📦 Mis Pedidos - Todos los usuarios */}
+            <button
+              onClick={() => router.push("/mis-pedidos")}
+              className="btn btn-outline-success"
+            >
+              📦 Mis Pedidos
+            </button>
+
+            {/* 🔐 Administración - Solo admin */}
+            {profile?.rol === "admin" && (
+              <button
+                onClick={() => router.push("/admin/usuarios")}
+                className="btn btn-outline-secondary"
+              >
+                👤 Usuarios
+              </button>
+            )}
+
+            {/* 🚚 Gestión de Pedidos - Solo admin */}
+            {profile?.rol === "admin" && (
+              <button
+                onClick={() => router.push("/admin/pedidos")}
+                className="btn btn-outline-warning"
+              >
+                🚚 Pedidos
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="auth-wrap">

@@ -1,4 +1,3 @@
-// src/pages/proteccion-solar/[tipo].js
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
@@ -7,26 +6,29 @@ import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 
-export default function ConfigProteccionSolar() {
+export default function ConfigProteccionSolar({
+  datosIniciales = null,
+  onSubmit = null,
+  guardando = false,
+  modoEdicion = false,
+  tipoOverride = null,
+}) {
   const router = useRouter();
-  const { tipo } = router.query;
+  const { tipo: tipoQuery } = router.query;
+  
+  const tipo = tipoOverride || tipoQuery;
+  
   const { session, profile, loading } = useAuth();
 
-  // Catálogo
   const [modelos, setModelos] = useState([]);
   const [colores, setColores] = useState([]);
   const [accesorios, setAccesorios] = useState([]);
 
-  // Selección
   const [modeloId, setModeloId] = useState("");
   const [colorId, setColorId] = useState("");
-  const [alto, setAlto] = useState(""); // mm
-  const [ancho, setAncho] = useState(""); // mm
   const [accSel, setAccSel] = useState([]);
 
-  // Precios
-  const [precioM2, setPrecioM2] = useState(null);
-  const [precioBase, setPrecioBase] = useState(0);
+  const [precioBase, setPrecioBase] = useState(null);
   const [incrementoColor, setIncrementoColor] = useState(0);
   const [accTotal, setAccTotal] = useState(0);
   const [descuento, setDescuento] = useState(0);
@@ -35,17 +37,13 @@ export default function ConfigProteccionSolar() {
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const tituloTipo = {
-    "toldos-brazos": "Toldos de brazos",
-    "toldos-punto-recto": "Toldos de punto recto",
-    "screen-vertical": "Screen vertical"
-  }[tipo] || "Protección Solar";
+  const tituloTipo = tipo || "Protección Solar";
 
-  // Calcular seleccionados
   const modeloSel = useMemo(
     () => modelos.find((m) => m.id === modeloId),
     [modelos, modeloId]
   );
+
   const colorSel = useMemo(
     () => colores.find((c) => c.id === colorId),
     [colores, colorId]
@@ -53,29 +51,34 @@ export default function ConfigProteccionSolar() {
 
   /* ================== ACCESO ================== */
   useEffect(() => {
-    if (!loading && !session) {
+    if (!loading && !session && !modoEdicion) {
       router.replace("/login?m=login-required");
     }
-  }, [loading, session, router]);
+  }, [loading, session, router, modoEdicion]);
 
   /* ================== CARGA CATÁLOGO ================== */
   useEffect(() => {
     const load = async () => {
       try {
+        console.log("🔄 Cargando catálogo protección solar, tipo:", tipo);
+
         // MODELOS
         const { data: m, error: mErr } = await supabase
           .from("proteccionsolar_modelos")
           .select("*");
+
+        console.log("📊 [MODELOS] Total registros:", m?.length || 0);
 
         if (mErr) {
           console.error("[proteccionsolar_modelos] error:", mErr);
           setModelos([]);
         } else {
           const activos = (m || []).filter((x) => x.activo === true);
+          console.log("✅ Modelos activos encontrados:", activos.length);
           setModelos(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
         }
 
-        // COLORES ESTRUCTURA
+        // COLORES / ESTRUCTURA
         const { data: c, error: cErr } = await supabase
           .from("proteccionsolar_colores_estructura")
           .select("*");
@@ -101,12 +104,12 @@ export default function ConfigProteccionSolar() {
           setAccesorios(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
         }
       } catch (e) {
-        console.error("[load catálogo] exception:", e);
+        console.error("💥 Error cargando catálogo:", e);
       }
     };
 
-    if (tipo) load();
-  }, [tipo]);
+    if (tipo || modoEdicion) load();
+  }, [tipo, modoEdicion]);
 
   /* ================== DESCUENTO CLIENTE ================== */
   useEffect(() => {
@@ -116,18 +119,35 @@ export default function ConfigProteccionSolar() {
       const uid = session.user.id;
 
       try {
-        const { data, error } = await supabase
+        console.log("[proteccion-solar descuento] buscando para auth_user_id:", uid);
+
+        const { data, error, status } = await supabase
           .from("administracion_usuarios")
           .select("id, auth_user_id, descuento, descuento_cliente")
           .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
           .maybeSingle();
 
-        if (error || !data) {
+        console.log("[proteccion-solar descuento] status:", status, "data:", data, "error:", error);
+
+        if (error) {
+          console.warn("[proteccion-solar descuento] error:", error);
+          setDescuento(0);
+          return;
+        }
+
+        if (!data) {
+          console.warn("[proteccion-solar descuento] no se encontró usuario");
           setDescuento(0);
           return;
         }
 
         const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
+        console.log("[proteccion-solar descuento] aplicado =", pct, "%", {
+          descuento: data?.descuento,
+          descuento_cliente: data?.descuento_cliente,
+          calculado: pct
+        });
+
         setDescuento(Number.isFinite(pct) ? pct : 0);
       } catch (e) {
         console.error("[proteccion-solar descuento] exception:", e);
@@ -138,68 +158,140 @@ export default function ConfigProteccionSolar() {
     loadDesc();
   }, [session?.user?.id]);
 
-  /* ================== PRECIO BASE (€/m²) ================== */
+  /* ================== CARGAR DATOS INICIALES EN MODO EDICIÓN ================== */
+  useEffect(() => {
+    if (!datosIniciales || !modoEdicion) return;
+
+    console.log("📝 [MODO EDICIÓN PROTECCIÓN SOLAR] Cargando datos iniciales:", datosIniciales);
+
+    // Modelo - AÑADIR ESTO
+    if (datosIniciales.tipo && modelos.length > 0) {
+      // Buscar modelo por el tipo del presupuesto
+      // El tipo viene como "proteccion-solar-Stor-vilaluz"
+      const tipoPresupuesto = datosIniciales.tipo.replace('proteccion-solar-', '');
+      const modeloEncontrado = modelos.find(
+        (m) => m.nombre.toLowerCase().includes(tipoPresupuesto.toLowerCase())
+      );
+      
+      if (modeloEncontrado) {
+        console.log("   → Modelo encontrado:", modeloEncontrado.nombre);
+        setModeloId(String(modeloEncontrado.id));
+      } else {
+        // Si no encuentra, seleccionar el primero
+        console.log("   → Modelo no encontrado, seleccionando primero disponible");
+        setModeloId(String(modelos[0].id));
+      }
+    }
+
+    // Color
+    if (datosIniciales.color && colores.length > 0) {
+      const colorEncontrado = colores.find(
+        (c) => c.nombre.toLowerCase() === datosIniciales.color.toLowerCase()
+      );
+      if (colorEncontrado) {
+        console.log("   → Color encontrado:", colorEncontrado.nombre);
+        setColorId(String(colorEncontrado.id));
+      }
+    }
+
+    // Accesorios
+    if (datosIniciales.accesorios && Array.isArray(datosIniciales.accesorios)) {
+      console.log("   → Accesorios:", datosIniciales.accesorios.length);
+      const accesoriosNormalizados = datosIniciales.accesorios.map((a) => ({
+        id: a.id,
+        nombre: a.nombre,
+        pvp: Number(a.precio_unit || 0),
+        unidades: Number(a.unidades || 0),
+      }));
+      setAccSel(accesoriosNormalizados);
+    }
+
+    // Precio base
+    if (datosIniciales.medida_precio) {
+      console.log("   → Precio base:", datosIniciales.medida_precio);
+      setPrecioBase(Number(datosIniciales.medida_precio));
+    }
+
+    // Incremento color
+    if (datosIniciales.color_precio) {
+      console.log("   → Incremento color:", datosIniciales.color_precio);
+      setIncrementoColor(Number(datosIniciales.color_precio));
+    }
+
+    // Descuento
+    if (datosIniciales.descuento_cliente && descuento === 0) {
+      console.log("   → Descuento inicial:", datosIniciales.descuento_cliente);
+      setDescuento(Number(datosIniciales.descuento_cliente));
+    }
+  }, [datosIniciales, modoEdicion, modelos, colores, descuento]);
+
+  /* ================== PRECIO BASE ================== */
   useEffect(() => {
     const loadPrecio = async () => {
-      setPrecioM2(null);
+      setPrecioBase(null);
+      setIncrementoColor(0);
+
       if (!modeloId || !colorId) return;
+
+      const modelo = modelos.find((m) => m.id === modeloId);
+      const color = colores.find((c) => c.id === colorId);
+
+      if (!modelo || !color) return;
 
       try {
         const { data, error } = await supabase
           .from("proteccionsolar_precios")
           .select("*")
-          .eq("modelo_id", modeloId)
-          .eq("color_id", colorId)
+          .eq("modelo_id", modelo.id)
+          .eq("color_id", color.id)
           .maybeSingle();
 
-        if (error || !data) {
-          console.warn("[precio] no encontrado para", { modeloId, colorId });
-          setPrecioM2(null);
+        if (error) {
+          console.error("❌ [ERROR en búsqueda]:", error);
+          setPrecioBase(null);
+          return;
+        }
+
+        if (!data) {
+          console.warn("⚠️ NO ENCONTRADO precio para:", modelo.nombre, "+", color.nombre);
+          setPrecioBase(null);
+          return;
+        }
+
+        const precioValue = data.precio_m2 ?? data.precio ?? 0;
+        console.log("✅ PRECIO ENCONTRADO:", precioValue, "€");
+        setPrecioBase(Number(precioValue || 0));
+
+        if (color.incremento_m2 && color.incremento_m2 > 0) {
+          setIncrementoColor(Number(color.incremento_m2));
         } else {
-          setPrecioM2(Number(data.precio_m2 || 0));
+          setIncrementoColor(0);
         }
       } catch (e) {
-        console.error("[loadPrecio] exception:", e);
-        setPrecioM2(null);
+        console.error("💥 EXCEPTION precio:", e);
+        setPrecioBase(null);
       }
     };
 
     loadPrecio();
-  }, [modeloId, colorId]);
-
-  /* ================== INCREMENTO COLOR ================== */
-  useEffect(() => {
-    if (!colorSel) {
-      setIncrementoColor(0);
-      return;
-    }
-    setIncrementoColor(Number(colorSel.incremento_m2 || 0));
-  }, [colorSel]);
+  }, [modeloId, colorId, modelos, colores]);
 
   /* ================== CÁLCULOS ================== */
   useEffect(() => {
-    const altoM = Number(alto || 0) / 1000;
-    const anchoM = Number(ancho || 0) / 1000;
-    const areaM2 = altoM * anchoM;
-
-    // Precio base
-    const pBase = precioM2 !== null ? precioM2 * areaM2 : 0;
-    setPrecioBase(+pBase.toFixed(2));
-
-    // Accesorios
     const acc = accSel.reduce((sum, a) => {
       return sum + Number(a.pvp || 0) * Number(a.unidades || 0);
     }, 0);
+
     setAccTotal(+acc.toFixed(2));
 
-    // Subtotal y total con descuento
-    const subtotal = pBase + (incrementoColor * areaM2) + acc;
+    const subtotal = (precioBase || 0) + incrementoColor + acc;
     const desc = subtotal * (descuento / 100);
     const tot = subtotal - desc;
-    setTotal(+tot.toFixed(2));
-  }, [alto, ancho, precioM2, incrementoColor, accSel, descuento]);
 
-  /* ================== HANDLERS ================== */
+    setTotal(+tot.toFixed(2));
+  }, [precioBase, incrementoColor, accSel, descuento]);
+
+  /* ================== MANEJAR ACCESORIOS ================== */
   const onSetAccUnidades = (acc, value) => {
     const uds = Math.max(0, parseInt(value || "0", 10));
 
@@ -221,15 +313,72 @@ export default function ConfigProteccionSolar() {
       if (found) {
         return prev
           .map((x) => (x.id === acc.id ? { ...x, unidades: uds } : x))
-          .filter((x) => (x.unidades || 0) > 0);
+          .filter((x) => x.unidades > 0);
       }
 
       return prev;
     });
   };
 
+  /* ================== FUNCIÓN PARA OBTENER IMAGEN ACCESORIO ================== */
+  function getImagenAccesorio(nombreAccesorio) {
+    if (!nombreAccesorio) return null;
+
+    const nombre = nombreAccesorio.toLowerCase();
+
+    if (nombre.includes("kit") && nombre.includes("fijación")) {
+      return "/assets/proteccionSolar/accesorios/kitFijacion.png";
+    }
+
+    if (nombre.includes("motor") && nombre.includes("40")) {
+      return "/assets/proteccionSolar/accesorios/motorRadio.png";
+    }
+
+    if (nombre.includes("motor") && nombre.includes("50")) {
+      return "/assets/proteccionSolar/accesorios/motorRadio.png";
+    }
+
+    if (nombre.includes("sensor")) {
+      return "/assets/proteccionSolar/accesorios/sensorRadio.png";
+    }
+
+    if (nombre.includes("manivela")) {
+      return "/assets/proteccionSolar/accesorios/manivelaMonoblock.png";
+    }
+
+    return null;
+  }
+
   /* ================== GUARDAR ================== */
   async function guardar() {
+    // MODO EDICIÓN: usar callback
+    if (modoEdicion && onSubmit) {
+      const subtotal = (precioBase || 0) + incrementoColor + accTotal;
+      
+      const datosPresupuesto = {
+        cliente: profile?.usuario || datosIniciales?.cliente || "",
+        email: profile?.email || datosIniciales?.email || "",
+        cif: profile?.cif || datosIniciales?.cif || null,
+        medida_precio: precioBase || 0,
+        color: colorSel?.nombre || null,
+        color_precio: incrementoColor,
+        accesorios: accSel.map((a) => ({
+          id: a.id,
+          nombre: a.nombre,
+          unidades: a.unidades,
+          precio_unit: a.pvp,
+        })),
+        subtotal: subtotal,
+        descuento_cliente: descuento,
+        total: total,
+      };
+
+      console.log("💾 [MODO EDICIÓN PROTECCIÓN SOLAR] Enviando datos:", datosPresupuesto);
+      onSubmit(datosPresupuesto);
+      return;
+    }
+
+    // MODO NORMAL: guardar nuevo presupuesto
     setSaving(true);
     setMsg("");
 
@@ -239,21 +388,12 @@ export default function ConfigProteccionSolar() {
         return;
       }
 
-      if (!modeloId || !colorId || !alto || !ancho) {
-        setMsg("⚠️ Completa todos los campos requeridos.");
+      if (!modeloId || !colorId || precioBase === null) {
+        setMsg("⚠️ Completa todos los campos.");
         return;
       }
 
-      if (precioM2 === null) {
-        setMsg("⚠️ No hay precio disponible para esta combinación. Contacta con administración.");
-        return;
-      }
-
-      const altoM = Number(alto) / 1000;
-      const anchoM = Number(ancho) / 1000;
-      const areaM2 = altoM * anchoM;
-      const precioColorTotal = incrementoColor * areaM2;
-      const subtotal = Number(precioBase) + Number(precioColorTotal) + Number(accTotal);
+      const subtotal = (precioBase || 0) + incrementoColor + accTotal;
 
       const payload = {
         user_id: session.user.id,
@@ -261,36 +401,40 @@ export default function ConfigProteccionSolar() {
         email: profile?.email || "",
         cif: profile?.cif || null,
         tipo: `proteccion-solar-${tipo}`,
-        alto_mm: Number(alto),
-        ancho_mm: Number(ancho),
-        medida_precio: Number(precioBase),
+        alto_mm: 0,
+        ancho_mm: 0,
+        medida_precio: precioBase || 0,
         color: colorSel?.nombre || null,
-        color_precio: Number(precioColorTotal),
+        color_precio: incrementoColor,
         accesorios: accSel.map((a) => ({
           id: a.id,
           nombre: a.nombre,
-          unidades: Number(a.unidades || 0),
-          precio_unit: Number(a.pvp || 0),
+          unidades: a.unidades,
+          precio_unit: a.pvp,
         })),
-        subtotal: Number(subtotal),
-        descuento_cliente: Number(descuento),
-        total: Number(total),
+        subtotal: subtotal,
+        descuento_cliente: descuento,
+        total: total,
         pagado: false,
       };
 
-      const { data, error } = await supabase
+      console.log("[guardar protección solar] payload:", payload);
+
+      const { error } = await supabase
         .from("presupuestos")
-        .insert([payload])
-        .select("id")
-        .maybeSingle();
+        .insert([payload]);
 
       if (error) {
         console.error("[insert presupuesto]", error);
-        setMsg(`❌ No se pudo guardar: ${error.message}`);
+        setMsg(`❌ Error guardando: ${error.message}`);
         return;
       }
 
       setMsg("✅ Presupuesto guardado correctamente.");
+
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
     } catch (e) {
       console.error("[guardar exception]", e);
       setMsg(`❌ Error inesperado: ${e?.message || e}`);
@@ -303,25 +447,28 @@ export default function ConfigProteccionSolar() {
   return (
     <>
       <Head>
-        <title>Configurar {tituloTipo} · PresuProsol</title>
+        <title>{`Configurar ${tituloTipo} · PresuProsol`}</title>
       </Head>
-      <Header />
+      
+      {!modoEdicion && <Header />}
 
-      <main className="container py-4" style={{ maxWidth: 980 }}>
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h1 className="h4 m-0">{tituloTipo}</h1>
-          <button
-            className="btn btn-outline-secondary"
-            onClick={() => router.push("/proteccion-solar")}
-          >
-            ← Volver
-          </button>
-        </div>
+      <main className={`container ${!modoEdicion ? 'py-4' : ''}`} style={{ maxWidth: 980 }}>
+        {!modoEdicion && (
+          <div className="d-flex align-items-center justify-content-between mb-3">
+            <h1 className="h4 m-0">{tituloTipo}</h1>
+            <button
+              className="btn btn-outline-secondary"
+              onClick={() => router.push("/proteccion-solar")}
+            >
+              ← Volver
+            </button>
+          </div>
+        )}
 
         <div className="card shadow-sm">
           <div className="card-body">
             <div className="row g-3">
-              {/* Modelo */}
+              {/* ================== MODELO ================== */}
               <div className="col-12 col-md-6">
                 <label className="form-label">Modelo</label>
                 <select
@@ -332,15 +479,15 @@ export default function ConfigProteccionSolar() {
                   <option value="">Selecciona modelo…</option>
                   {modelos.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.nombre}
+                      {m.nombre} {m.descripcion && `- ${m.descripcion}`}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Color estructura */}
+              {/* ================== COLOR / ESTRUCTURA ================== */}
               <div className="col-12 col-md-6">
-                <label className="form-label">Color estructura</label>
+                <label className="form-label">Color / Estructura</label>
                 <select
                   className="form-select"
                   value={colorId}
@@ -349,107 +496,114 @@ export default function ConfigProteccionSolar() {
                   <option value="">Selecciona color…</option>
                   {colores.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.nombre} {incrementoColor > 0 && `(+${incrementoColor.toFixed(2)} €/m²)`}
+                      {c.nombre}
+                      {c.incremento_m2 > 0 && ` (+${c.incremento_m2} €)`}
                     </option>
                   ))}
                 </select>
 
-                {precioM2 === null && modeloId && colorId && (
+                {precioBase === null && modeloId && colorId && (
                   <small className="text-danger d-block mt-1">
                     Precio: consultar
                   </small>
                 )}
 
-                {precioM2 !== null && modeloId && colorId && (
+                {precioBase !== null && (
                   <small className="text-muted d-block mt-1">
-                    Precio base: {Number(precioM2).toFixed(2)} €/m²
+                    Precio base: {precioBase.toFixed(2)} €
                   </small>
                 )}
               </div>
 
-              {/* Medidas */}
-              <div className="col-12 col-md-6">
-                <label className="form-label">Alto (mm)</label>
-                <input
-                  className="form-control"
-                  type="number"
-                  min={0}
-                  value={alto}
-                  onChange={(e) => setAlto(e.target.value)}
-                />
-              </div>
-              <div className="col-12 col-md-6">
-                <label className="form-label">Ancho (mm)</label>
-                <input
-                  className="form-control"
-                  type="number"
-                  min={0}
-                  value={ancho}
-                  onChange={(e) => setAncho(e.target.value)}
-                />
-              </div>
-
-              {/* Accesorios */}
+              {/* ================== ACCESORIOS ================== */}
               <div className="col-12">
                 <label className="form-label d-block">Accesorios</label>
-                <div className="row g-2">
-                  {accesorios.map((a) => {
-                    const sel = accSel.find((x) => x.id === a.id)?.unidades || 0;
-                    return (
-                      <div className="col-12 col-md-6" key={a.id}>
-                        <div className="d-flex align-items-center justify-content-between border rounded p-2">
-                          <div>
-                            <div className="fw-semibold">{a.nombre}</div>
-                            <small className="text-muted">
-                              {Number(a.pvp || 0).toFixed(2)} € / {a.unidad}
-                            </small>
-                          </div>
-                          <div style={{ minWidth: 120 }}>
+
+                {accesorios.length === 0 && (
+                  <small className="text-muted">No hay accesorios disponibles</small>
+                )}
+
+                {accesorios.length > 0 && (
+                  <div className="row g-2">
+                    {accesorios.map((a) => {
+                      const sel = accSel.find((x) => x.id === a.id)?.unidades || 0;
+                      const imagenUrl = getImagenAccesorio(a.nombre);
+
+                      return (
+                        <div className="col-12 col-md-6" key={a.id}>
+                          <div className="border rounded p-2 d-flex align-items-center gap-3">
+                            {/* IMAGEN DEL ACCESORIO */}
+                            {imagenUrl && (
+                              <img
+                                src={imagenUrl}
+                                alt={a.nombre}
+                                style={{
+                                  width: 80,
+                                  height: 80,
+                                  objectFit: "cover",
+                                  borderRadius: 8,
+                                  flexShrink: 0
+                                }}
+                                onError={(e) => {
+                                  console.error("❌ Error cargando imagen:", imagenUrl);
+                                  e.target.style.display = "none";
+                                }}
+                              />
+                            )}
+                            
+                            {/* INFO Y CANTIDAD */}
+                            <div className="flex-grow-1">
+                              <div className="fw-semibold">{a.nombre}</div>
+                              <small className="text-muted">
+                                {Number(a.pvp || 0).toFixed(2)} € / {a.unidad}
+                              </small>
+                            </div>
+
+                            {/* INPUT CANTIDAD */}
                             <input
                               type="number"
                               min={0}
-                              step={1}
                               className="form-control"
+                              style={{ width: 80 }}
                               value={sel}
                               onChange={(e) => onSetAccUnidades(a, e.target.value)}
                             />
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {accSel.length > 0 && (
-                  <small className="text-muted d-block mt-2">
-                    💡 Total accesorios: <strong>{accTotal.toFixed(2)} €</strong>
-                  </small>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
-              {/* Resumen */}
+              {/* ================== RESUMEN ================== */}
               <div className="col-12">
                 <hr />
                 <div className="d-flex flex-column gap-2">
                   <div className="d-flex justify-content-between">
                     <span>Precio base:</span>
-                    <strong>{precioBase.toFixed(2)} €</strong>
+                    <strong>{(precioBase || 0).toFixed(2)} €</strong>
                   </div>
+
                   {incrementoColor > 0 && (
                     <div className="d-flex justify-content-between">
                       <span>Incremento color:</span>
-                      <strong>{(incrementoColor * (Number(alto) * Number(ancho) / 1000000)).toFixed(2)} €</strong>
+                      <strong>{incrementoColor.toFixed(2)} €</strong>
                     </div>
                   )}
+
                   <div className="d-flex justify-content-between">
                     <span>Accesorios:</span>
                     <strong>{accTotal.toFixed(2)} €</strong>
                   </div>
+
                   <div className="d-flex justify-content-between">
                     <span>Descuento cliente:</span>
                     <strong>{descuento}%</strong>
                   </div>
+
                   <hr />
+
                   <div className="d-flex justify-content-between fs-4">
                     <span>TOTAL:</span>
                     <strong style={{ color: "var(--accent)" }}>
@@ -459,6 +613,7 @@ export default function ConfigProteccionSolar() {
                 </div>
               </div>
 
+              {/* ================== MENSAJE ================== */}
               {msg && (
                 <div
                   className={`col-12 alert ${
@@ -469,6 +624,7 @@ export default function ConfigProteccionSolar() {
                 </div>
               )}
 
+              {/* ================== BOTÓN GUARDAR ================== */}
               <div className="col-12">
                 <button
                   className="btn w-100"
@@ -478,16 +634,16 @@ export default function ConfigProteccionSolar() {
                     fontWeight: 600,
                   }}
                   onClick={guardar}
-                  disabled={
-                    saving ||
-                    !modeloId ||
-                    !colorId ||
-                    !alto ||
-                    !ancho ||
-                    precioM2 === null
-                  }
+                  disabled={saving || guardando || !modeloId || !colorId || precioBase === null}
                 >
-                  {saving ? "⏳ Guardando…" : "💾 Guardar presupuesto"}
+                  {(saving || guardando) ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      {modoEdicion ? "Actualizando…" : "Guardando…"}
+                    </>
+                  ) : (
+                    <>{modoEdicion ? "💾 Guardar Cambios" : "💾 Guardar presupuesto"}</>
+                  )}
                 </button>
               </div>
             </div>
@@ -495,7 +651,7 @@ export default function ConfigProteccionSolar() {
         </div>
       </main>
 
-      <Footer />
+      {!modoEdicion && <Footer />}
     </>
   );
 }

@@ -7,6 +7,9 @@ import { supabase } from "../../lib/supabaseClient";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 
+// 👉 Helper de notificaciones por email
+import { enviarAvisoEstadoUsuario } from "../../lib/emailNotifications";
+
 export default function UsuariosAdmin() {
   const router = useRouter();
   const { session, profile, loading } = useAuth();
@@ -55,10 +58,12 @@ export default function UsuariosAdmin() {
     setLoadingData(false);
   }
 
-  // ✅ Habilitar usuario (crea/actualiza su fila operativa en `usuarios`)
+  // 🟢 HABILITAR
   async function habilitarUsuario(u) {
     setMsg("");
+
     try {
+      // Cambia bandera habilitado en administracion_usuarios
       const { error: upErr } = await supabase
         .from("administracion_usuarios")
         .update({ habilitado: true })
@@ -67,6 +72,7 @@ export default function UsuariosAdmin() {
 
       const now = new Date().toISOString();
 
+      // Alta operativa en tabla usuarios
       const { error: insErr } = await supabase
         .from("usuarios")
         .upsert(
@@ -86,6 +92,13 @@ export default function UsuariosAdmin() {
         );
       if (insErr) throw insErr;
 
+      // 📧 Notificación por email (no bloquea la UI)
+      enviarAvisoEstadoUsuario({
+        email: u.email,        // 👉 gmail del usuario
+        usuario: u.usuario,
+        estado: "habilitado",
+      });
+
       setMsg("✅ Usuario habilitado correctamente.");
       fetchUsuarios();
     } catch (err) {
@@ -94,7 +107,7 @@ export default function UsuariosAdmin() {
     }
   }
 
-  // 🚫 Deshabilitar usuario (elimina su fila operativa en `usuarios`)
+  // 🔴 DESHABILITAR
   async function deshabilitarUsuario(u) {
     setMsg("");
     try {
@@ -104,13 +117,21 @@ export default function UsuariosAdmin() {
         .eq("id", u.id);
       if (upErr) throw upErr;
 
+      // Borrar fila operativa en usuarios
       const { error: delErr } = await supabase
         .from("usuarios")
         .delete()
         .eq("id", u.id);
       if (delErr) throw delErr;
 
-      setMsg("✅ Usuario deshabilitado y eliminado de usuarios.");
+      // 📧 Notificación por email
+      enviarAvisoEstadoUsuario({
+        email: u.email,        // 👉 gmail del usuario
+        usuario: u.usuario,
+        estado: "deshabilitado",
+      });
+
+      setMsg("⚠️ Usuario deshabilitado y eliminado de usuarios.");
       fetchUsuarios();
     } catch (err) {
       console.error("Error al deshabilitar:", err);
@@ -118,7 +139,7 @@ export default function UsuariosAdmin() {
     }
   }
 
-  // 🔁 Cambiar rol (admin/usuario)
+  // Cambiar ROL
   async function cambiarRol(u, nuevoRol) {
     setMsg("");
     try {
@@ -131,37 +152,34 @@ export default function UsuariosAdmin() {
       if (upAdminErr) throw upAdminErr;
 
       if (u.habilitado) {
-        const { error: upUsrErr } = await supabase
-          .from("usuarios")
-          .update({ rol: role })
-          .eq("id", u.id);
-        if (upUsrErr) throw upUsrErr;
+        await supabase.from("usuarios").update({ rol: role }).eq("id", u.id);
       }
 
-      setMsg("✅ Rol actualizado correctamente.");
+      setMsg("🔄 Rol actualizado correctamente.");
       fetchUsuarios();
     } catch (err) {
-      console.error("Error al cambiar rol:", err);
+      console.error("Error rol:", err);
       setMsg("❌ No se pudo cambiar el rol.");
     }
   }
 
-  // 💾 Cambiar descuento (%) solo en administracion_usuarios
+  // Cambiar % descuento
   async function cambiarDescuento(u, nuevoValor) {
     setMsg("");
-    // Normaliza número (0–100, dos decimales)
     const n = Number(
       String(nuevoValor).replace(",", ".").replace(/[^\d.]/g, "")
     );
     if (Number.isNaN(n) || n < 0 || n > 100) {
-      setMsg("❌ Descuento inválido. Debe estar entre 0 y 100.");
+      setMsg("❗ Descuento inválido (0–100%)");
       return;
     }
 
     // Optimistic UI
     setUsuarios((prev) =>
       prev.map((row) =>
-        row.id === u.id ? { ...row, descuento: Number(n.toFixed(2)) } : row
+        row.id === u.id
+          ? { ...row, descuento: Number(n.toFixed(2)) }
+          : row
       )
     );
 
@@ -171,12 +189,11 @@ export default function UsuariosAdmin() {
       .eq("id", u.id);
 
     if (error) {
-      console.error("Error guardando descuento:", error);
+      console.error("Error descuento:", error);
       setMsg("❌ No se pudo guardar el descuento.");
-      // Refresca para recuperar valor real
       fetchUsuarios();
     } else {
-      setMsg("✅ Descuento actualizado.");
+      setMsg("💾 Descuento actualizado.");
     }
   }
 
@@ -195,17 +212,24 @@ export default function UsuariosAdmin() {
               className="btn btn-outline-secondary btn-sm align-self-md-start"
               onClick={fetchUsuarios}
             >
-              <span role="img" aria-label="refresh" className="me-1">
-                🔄
-              </span>
-              Actualizar
+              🔄 Actualizar
             </button>
           </div>
 
           {msg && (
             <div
               className={`alert ${
-                msg.startsWith("✅") ? "alert-success" : "alert-danger"
+                msg.startsWith("✅")
+                  ? "alert-success"
+                  : msg.startsWith("💾")
+                  ? "alert-info"
+                  : msg.startsWith("🔄")
+                  ? "alert-info"
+                  : msg.startsWith("⚠️")
+                  ? "alert-warning"
+                  : msg.startsWith("❗")
+                  ? "alert-warning"
+                  : "alert-danger"
               }`}
             >
               {msg}
@@ -215,42 +239,43 @@ export default function UsuariosAdmin() {
           {loadingData ? (
             <p>Cargando usuarios...</p>
           ) : usuarios.length === 0 ? (
-            <div className="alert alert-warning">No hay usuarios registrados.</div>
+            <div className="alert alert-warning">
+              No hay usuarios registrados.
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="table table-hover table-sm align-middle mb-0">
                 <thead className="table-light">
                   <tr>
-                    <th className="text-nowrap">Usuario</th>
-                    <th className="text-nowrap">Email</th>
-                    <th className="text-nowrap">CIF / NIF</th>
-                    <th className="text-nowrap">Rol</th>
-                    <th className="text-nowrap">Descuento %</th>
-                    <th className="text-nowrap">Estado</th>
-                    <th className="text-nowrap">Creado</th>
-                    <th className="text-nowrap text-center">Acciones</th>
+                    <th>Usuario</th>
+                    <th>Email</th>
+                    <th>CIF / NIF</th>
+                    <th>Rol</th>
+                    <th>Descuento %</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th className="text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {usuarios.map((u) => (
                     <tr key={u.id}>
-                      <td className="text-nowrap">{u.usuario}</td>
-                      <td className="text-nowrap">{u.email}</td>
-                      <td className="text-nowrap">{u.cif}</td>
+                      <td>{u.usuario}</td>
+                      <td>{u.email}</td>
+                      <td>{u.cif}</td>
 
-                      <td className="text-nowrap">
+                      <td>
                         <select
                           value={u.rol || "usuario"}
                           onChange={(e) => cambiarRol(u, e.target.value)}
                           className="form-select form-select-sm"
-                          style={{ minWidth: "110px" }}
                         >
                           <option value="usuario">usuario</option>
                           <option value="admin">admin</option>
                         </select>
                       </td>
 
-                      <td className="text-nowrap" style={{ minWidth: 120 }}>
+                      <td style={{ minWidth: 120 }}>
                         <div className="input-group input-group-sm">
                           <input
                             type="number"
@@ -258,44 +283,41 @@ export default function UsuariosAdmin() {
                             min="0"
                             max="100"
                             className="form-control"
-                            value={
-                              typeof u.descuento === "number"
-                                ? u.descuento
-                                : u.descuento ?? 0
-                            }
+                            value={u.descuento ?? 0}
                             onChange={(e) =>
                               setUsuarios((prev) =>
                                 prev.map((row) =>
                                   row.id === u.id
-                                    ? {
-                                        ...row,
-                                        descuento: e.target.value,
-                                      }
+                                    ? { ...row, descuento: e.target.value }
                                     : row
                                 )
                               )
                             }
-                            onBlur={(e) => cambiarDescuento(u, e.target.value)}
+                            onBlur={(e) =>
+                              cambiarDescuento(u, e.target.value)
+                            }
                           />
                           <span className="input-group-text">%</span>
                         </div>
                       </td>
 
-                      <td className="text-nowrap">
+                      <td>
                         {u.habilitado ? (
                           <span className="badge bg-success">Habilitado</span>
                         ) : (
-                          <span className="badge bg-secondary">Deshabilitado</span>
+                          <span className="badge bg-secondary">
+                            Deshabilitado
+                          </span>
                         )}
                       </td>
 
-                      <td className="text-nowrap">
+                      <td>
                         {u.created_at
-                          ? new Date(u.created_at).toLocaleString("es-ES")
+                          ? new Date(u.created_at).toLocaleDateString("es-ES")
                           : "-"}
                       </td>
 
-                      <td className="text-nowrap text-center">
+                      <td className="text-center">
                         {u.habilitado ? (
                           <button
                             className="btn btn-warning btn-sm"
@@ -319,7 +341,6 @@ export default function UsuariosAdmin() {
             </div>
           )}
         </main>
-
         <Footer />
       </div>
     </>
