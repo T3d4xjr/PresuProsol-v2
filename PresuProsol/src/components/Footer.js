@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import useAuth from "../hooks/useAuth";
+import { useAuth } from "../context/AuthContext";
 import LoginAlert from "./LoginAlert";
 import styles from "../styles/Footer.module.css";
 

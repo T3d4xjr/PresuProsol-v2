@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/router";
-import useAuth from "../hooks/useAuth";
+import { useAuth } from "../context/AuthContext";
 import LoginAlert from "./LoginAlert";
 import styles from "../styles/Header.module.css";
 

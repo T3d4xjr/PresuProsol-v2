@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
-import useAuth from "../hooks/useAuth";
+import { useAuth } from "../context/AuthContext";
 import styles from "../styles/Contacto.module.css";
 
 export default function Contacto() {

@@ -2,7 +2,7 @@
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import useAuth from "../hooks/useAuth";
+import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import Header from "../components/Header";
 import ModalPago from "../components/ModalPago";

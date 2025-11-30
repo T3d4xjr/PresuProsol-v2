@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import Header from '../../src/components/Header';
-import { supabase } from '../../src/lib/supabaseClient';
-import styles from '../styles/Login.module.css';
+import Header from "@/components/Header";
+import { supabase } from "@/lib/supabaseClient";
+import styles from "@/styles/Login.module.css";
 
 export default function Login() {
   const [email, setEmail] = useState('');

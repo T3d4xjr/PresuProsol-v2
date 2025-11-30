@@ -3,7 +3,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
-import useAuth from "../../hooks/useAuth";
+import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../lib/supabaseClient";
 
 import {

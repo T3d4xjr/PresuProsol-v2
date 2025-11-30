@@ -1,42 +1,49 @@
+// pages/faq.js
 import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
-import useAuth from "../hooks/useAuth";
+import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 import styles from "../styles/FAQ.module.css";
 
 export default function FAQ() {
   const router = useRouter();
   const { session, profile, loading } = useAuth();
+
   const [faqs, setFaqs] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [cargando, setCargando] = useState(true);
 
-  // Usuario realmente permitido (logueado y habilitado)
   const canAccess = !!session && !!profile && profile.habilitado !== false;
 
-  /* 🔒 Protección */
+  // 🔒 Redirección si no tiene acceso
   useEffect(() => {
-    if (loading) return; // Esperar mientras carga
+    if (loading) return;
 
     if (!canAccess) {
       router.replace("/login?m=login-required");
     }
   }, [loading, canAccess, router]);
 
-  /* 📚 Cargar FAQs */
+  // 📚 Cargar FAQs solo cuando auth está OK
   useEffect(() => {
+    if (loading || !canAccess) return;
+
+    let cancelled = false;
+
     const loadFAQs = async () => {
       try {
         console.log("📚 [CARGANDO FAQs]");
         setCargando(true);
-        
+
         const { data, error } = await supabase
           .from("faqs")
           .select("*")
           .eq("activo", true)
           .order("orden", { ascending: true });
+
+        if (cancelled) return;
 
         if (error) {
           console.error("❌ Error cargando FAQs:", error);
@@ -47,24 +54,30 @@ export default function FAQ() {
         console.log("✅ FAQs cargadas:", data?.length);
         setFaqs(data || []);
       } catch (e) {
-        console.error("💥 Exception cargando FAQs:", e);
-        setFaqs([]);
+        if (!cancelled) {
+          console.error("💥 Exception cargando FAQs:", e);
+          setFaqs([]);
+        }
       } finally {
-        setCargando(false);
+        if (!cancelled) {
+          setCargando(false);
+        }
       }
     };
 
-    // Solo cargar si el usuario tiene acceso
-    if (canAccess && !loading) {
-      loadFAQs();
-    }
-  }, [canAccess, loading]);
+    loadFAQs();
+    console.log("[FAQ] auth state:", { loading, session, profile, canAccess });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, canAccess]);
 
   const toggleFAQ = (id) => {
-    setOpenId(openId === id ? null : id);
+    setOpenId((prev) => (prev === id ? null : id));
   };
 
-  // Mostrar loading mientras verifica auth
+  // Mientras auth está cargando -> spinner general
   if (loading) {
     return (
       <>
@@ -82,7 +95,7 @@ export default function FAQ() {
     );
   }
 
-  // Si no tiene acceso, no renderizar nada (redirigirá)
+  // Si NO puede acceder (y ya hemos lanzado la redirección), no pintamos nada
   if (!canAccess) {
     return null;
   }
@@ -91,7 +104,10 @@ export default function FAQ() {
     <>
       <Head>
         <title>Preguntas Frecuentes · PresuProsol</title>
-        <meta name="description" content="Encuentra respuestas a las preguntas más comunes sobre PresuProsol" />
+        <meta
+          name="description"
+          content="Encuentra respuestas a las preguntas más comunes sobre PresuProsol"
+        />
       </Head>
 
       <Header />
@@ -120,7 +136,9 @@ export default function FAQ() {
               {faqs.map((faq, index) => (
                 <div
                   key={faq.id}
-                  className={`${styles.faqItem} ${openId === faq.id ? styles.faqItemOpen : ""}`}
+                  className={`${styles.faqItem} ${
+                    openId === faq.id ? styles.faqItemOpen : ""
+                  }`}
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <button
@@ -134,7 +152,11 @@ export default function FAQ() {
                     </span>
                   </button>
 
-                  <div className={`${styles.faqAnswer} ${openId === faq.id ? styles.faqAnswerOpen : ""}`}>
+                  <div
+                    className={`${styles.faqAnswer} ${
+                      openId === faq.id ? styles.faqAnswerOpen : ""
+                    }`}
+                  >
                     <div className={styles.answerContent}>
                       <p>{faq.respuesta}</p>
                     </div>

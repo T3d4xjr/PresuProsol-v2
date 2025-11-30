@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
 import styles from "../styles/Home.module.css";
-import useAuth from "../hooks/useAuth";
+import { useAuth } from "../context/AuthContext";
 import LoginAlert from "../components/LoginAlert"; // modal personalizado
 
 export default function Home() {

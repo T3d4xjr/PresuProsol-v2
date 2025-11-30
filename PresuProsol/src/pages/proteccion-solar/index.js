@@ -3,7 +3,7 @@ import Head from "next/head";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
-import useAuth from "../../hooks/useAuth";
+import { useAuth } from "../../context/AuthContext";
 
 function TypeCard({ title, imgSrc, onClick, objectFit = "cover" }) {
   return (
