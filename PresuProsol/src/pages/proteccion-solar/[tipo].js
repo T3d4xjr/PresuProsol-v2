@@ -1,9 +1,16 @@
+// src/pages/proteccion-solar/[tipo].js
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../api/supabaseClient";
+
+import {
+  fetchCatalogoProteccionSolar,
+  fetchDescuentoClienteProteccionSolar,
+  fetchPrecioProteccionSolar,
+  insertarPresupuestoProteccionSolar,
+} from "../api/proteccionSolar";
 
 export default function ConfigProteccionSolar({
   datosIniciales = null,
@@ -14,9 +21,9 @@ export default function ConfigProteccionSolar({
 }) {
   const router = useRouter();
   const { tipo: tipoQuery } = router.query;
-  
+
   const tipo = tipoOverride || tipoQuery;
-  
+
   const { session, profile, loading } = useAuth();
 
   const [modelos, setModelos] = useState([]);
@@ -61,49 +68,17 @@ export default function ConfigProteccionSolar({
       try {
         console.log("🔄 Cargando catálogo protección solar, tipo:", tipo);
 
-        // MODELOS
-        const { data: m, error: mErr } = await supabase
-          .from("proteccionsolar_modelos")
-          .select("*");
+        const { modelos, colores, accesorios } =
+          await fetchCatalogoProteccionSolar();
 
-        console.log("📊 [MODELOS] Total registros:", m?.length || 0);
-
-        if (mErr) {
-          console.error("[proteccionsolar_modelos] error:", mErr);
-          setModelos([]);
-        } else {
-          const activos = (m || []).filter((x) => x.activo === true);
-          console.log("✅ Modelos activos encontrados:", activos.length);
-          setModelos(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
-        }
-
-        // COLORES / ESTRUCTURA
-        const { data: c, error: cErr } = await supabase
-          .from("proteccionsolar_colores_estructura")
-          .select("*");
-
-        if (cErr) {
-          console.error("[proteccionsolar_colores_estructura] error:", cErr);
-          setColores([]);
-        } else {
-          const activos = (c || []).filter((x) => x.activo === true);
-          setColores(activos.sort((a, b) => (a.orden || 0) - (b.orden || 0)));
-        }
-
-        // ACCESORIOS
-        const { data: acc, error: accErr } = await supabase
-          .from("proteccionsolar_accesorios")
-          .select("*");
-
-        if (accErr) {
-          console.error("[proteccionsolar_accesorios] error:", accErr);
-          setAccesorios([]);
-        } else {
-          const activos = (acc || []).filter((x) => x.activo === true);
-          setAccesorios(activos.sort((a, b) => a.nombre.localeCompare(b.nombre)));
-        }
+        setModelos(modelos);
+        setColores(colores);
+        setAccesorios(accesorios);
       } catch (e) {
         console.error("💥 Error cargando catálogo:", e);
+        setModelos([]);
+        setColores([]);
+        setAccesorios([]);
       }
     };
 
@@ -114,44 +89,10 @@ export default function ConfigProteccionSolar({
   useEffect(() => {
     const loadDesc = async () => {
       if (!session?.user?.id) return;
-
-      const uid = session.user.id;
-
-      try {
-        console.log("[proteccion-solar descuento] buscando para auth_user_id:", uid);
-
-        const { data, error, status } = await supabase
-          .from("administracion_usuarios")
-          .select("id, auth_user_id, descuento, descuento_cliente")
-          .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
-          .maybeSingle();
-
-        console.log("[proteccion-solar descuento] status:", status, "data:", data, "error:", error);
-
-        if (error) {
-          console.warn("[proteccion-solar descuento] error:", error);
-          setDescuento(0);
-          return;
-        }
-
-        if (!data) {
-          console.warn("[proteccion-solar descuento] no se encontró usuario");
-          setDescuento(0);
-          return;
-        }
-
-        const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
-        console.log("[proteccion-solar descuento] aplicado =", pct, "%", {
-          descuento: data?.descuento,
-          descuento_cliente: data?.descuento_cliente,
-          calculado: pct
-        });
-
-        setDescuento(Number.isFinite(pct) ? pct : 0);
-      } catch (e) {
-        console.error("[proteccion-solar descuento] exception:", e);
-        setDescuento(0);
-      }
+      const pct = await fetchDescuentoClienteProteccionSolar(
+        session.user.id
+      );
+      setDescuento(pct);
     };
 
     loadDesc();
@@ -161,23 +102,28 @@ export default function ConfigProteccionSolar({
   useEffect(() => {
     if (!datosIniciales || !modoEdicion) return;
 
-    console.log("📝 [MODO EDICIÓN PROTECCIÓN SOLAR] Cargando datos iniciales:", datosIniciales);
+    console.log(
+      "📝 [MODO EDICIÓN PROTECCIÓN SOLAR] Cargando datos iniciales:",
+      datosIniciales
+    );
 
-    // Modelo - AÑADIR ESTO
+    // Modelo
     if (datosIniciales.tipo && modelos.length > 0) {
-      // Buscar modelo por el tipo del presupuesto
-      // El tipo viene como "proteccion-solar-Stor-vilaluz"
-      const tipoPresupuesto = datosIniciales.tipo.replace('proteccion-solar-', '');
-      const modeloEncontrado = modelos.find(
-        (m) => m.nombre.toLowerCase().includes(tipoPresupuesto.toLowerCase())
+      const tipoPresupuesto = datosIniciales.tipo.replace(
+        "proteccion-solar-",
+        ""
       );
-      
+      const modeloEncontrado = modelos.find((m) =>
+        m.nombre.toLowerCase().includes(tipoPresupuesto.toLowerCase())
+      );
+
       if (modeloEncontrado) {
         console.log("   → Modelo encontrado:", modeloEncontrado.nombre);
         setModeloId(String(modeloEncontrado.id));
       } else {
-        // Si no encuentra, seleccionar el primero
-        console.log("   → Modelo no encontrado, seleccionando primero disponible");
+        console.log(
+          "   → Modelo no encontrado, seleccionando primero disponible"
+        );
         setModeloId(String(modelos[0].id));
       }
     }
@@ -238,37 +184,17 @@ export default function ConfigProteccionSolar({
       if (!modelo || !color) return;
 
       try {
-        const { data, error } = await supabase
-          .from("proteccionsolar_precios")
-          .select("*")
-          .eq("modelo_id", modelo.id)
-          .eq("color_id", color.id)
-          .maybeSingle();
+        const { precio, incrementoColor } = await fetchPrecioProteccionSolar({
+          modeloId: modelo.id,
+          colorId: color.id,
+        });
 
-        if (error) {
-          console.error("❌ [ERROR en búsqueda]:", error);
-          setPrecioBase(null);
-          return;
-        }
-
-        if (!data) {
-          console.warn("⚠️ NO ENCONTRADO precio para:", modelo.nombre, "+", color.nombre);
-          setPrecioBase(null);
-          return;
-        }
-
-        const precioValue = data.precio_m2 ?? data.precio ?? 0;
-        console.log("✅ PRECIO ENCONTRADO:", precioValue, "€");
-        setPrecioBase(Number(precioValue || 0));
-
-        if (color.incremento_m2 && color.incremento_m2 > 0) {
-          setIncrementoColor(Number(color.incremento_m2));
-        } else {
-          setIncrementoColor(0);
-        }
+        setPrecioBase(precio);
+        setIncrementoColor(incrementoColor);
       } catch (e) {
         console.error("💥 EXCEPTION precio:", e);
         setPrecioBase(null);
+        setIncrementoColor(0);
       }
     };
 
@@ -353,7 +279,7 @@ export default function ConfigProteccionSolar({
     // MODO EDICIÓN: usar callback
     if (modoEdicion && onSubmit) {
       const subtotal = (precioBase || 0) + incrementoColor + accTotal;
-      
+
       const datosPresupuesto = {
         cliente: profile?.usuario || datosIniciales?.cliente || "",
         email: profile?.email || datosIniciales?.email || "",
@@ -372,7 +298,10 @@ export default function ConfigProteccionSolar({
         total: total,
       };
 
-      console.log("💾 [MODO EDICIÓN PROTECCIÓN SOLAR] Enviando datos:", datosPresupuesto);
+      console.log(
+        "💾 [MODO EDICIÓN PROTECCIÓN SOLAR] Enviando datos:",
+        datosPresupuesto
+      );
       onSubmit(datosPresupuesto);
       return;
     }
@@ -419,15 +348,7 @@ export default function ConfigProteccionSolar({
 
       console.log("[guardar protección solar] payload:", payload);
 
-      const { error } = await supabase
-        .from("presupuestos")
-        .insert([payload]);
-
-      if (error) {
-        console.error("[insert presupuesto]", error);
-        setMsg(`❌ Error guardando: ${error.message}`);
-        return;
-      }
+      await insertarPresupuestoProteccionSolar(payload);
 
       setMsg("✅ Presupuesto guardado correctamente.");
 
@@ -448,10 +369,13 @@ export default function ConfigProteccionSolar({
       <Head>
         <title>{`Configurar ${tituloTipo} · PresuProsol`}</title>
       </Head>
-      
+
       {!modoEdicion && <Header />}
 
-      <main className={`container ${!modoEdicion ? 'py-4' : ''}`} style={{ maxWidth: 980 }}>
+      <main
+        className={`container ${!modoEdicion ? "py-4" : ""}`}
+        style={{ maxWidth: 980 }}
+      >
         {!modoEdicion && (
           <div className="d-flex align-items-center justify-content-between mb-3">
             <h1 className="h4 m-0">{tituloTipo}</h1>
@@ -467,7 +391,7 @@ export default function ConfigProteccionSolar({
         <div className="card shadow-sm">
           <div className="card-body">
             <div className="row g-3">
-              {/* ================== MODELO ================== */}
+              {/* MODELO */}
               <div className="col-12 col-md-6">
                 <label className="form-label">Modelo</label>
                 <select
@@ -484,7 +408,7 @@ export default function ConfigProteccionSolar({
                 </select>
               </div>
 
-              {/* ================== COLOR / ESTRUCTURA ================== */}
+              {/* COLOR / ESTRUCTURA */}
               <div className="col-12 col-md-6">
                 <label className="form-label">Color / Estructura</label>
                 <select
@@ -514,24 +438,26 @@ export default function ConfigProteccionSolar({
                 )}
               </div>
 
-              {/* ================== ACCESORIOS ================== */}
+              {/* ACCESORIOS */}
               <div className="col-12">
                 <label className="form-label d-block">Accesorios</label>
 
                 {accesorios.length === 0 && (
-                  <small className="text-muted">No hay accesorios disponibles</small>
+                  <small className="text-muted">
+                    No hay accesorios disponibles
+                  </small>
                 )}
 
                 {accesorios.length > 0 && (
                   <div className="row g-2">
                     {accesorios.map((a) => {
-                      const sel = accSel.find((x) => x.id === a.id)?.unidades || 0;
+                      const sel =
+                        accSel.find((x) => x.id === a.id)?.unidades || 0;
                       const imagenUrl = getImagenAccesorio(a.nombre);
 
                       return (
                         <div className="col-12 col-md-6" key={a.id}>
                           <div className="border rounded p-2 d-flex align-items-center gap-3">
-                            {/* IMAGEN DEL ACCESORIO */}
                             {imagenUrl && (
                               <img
                                 src={imagenUrl}
@@ -541,16 +467,18 @@ export default function ConfigProteccionSolar({
                                   height: 80,
                                   objectFit: "cover",
                                   borderRadius: 8,
-                                  flexShrink: 0
+                                  flexShrink: 0,
                                 }}
                                 onError={(e) => {
-                                  console.error("❌ Error cargando imagen:", imagenUrl);
+                                  console.error(
+                                    "❌ Error cargando imagen:",
+                                    imagenUrl
+                                  );
                                   e.target.style.display = "none";
                                 }}
                               />
                             )}
-                            
-                            {/* INFO Y CANTIDAD */}
+
                             <div className="flex-grow-1">
                               <div className="fw-semibold">{a.nombre}</div>
                               <small className="text-muted">
@@ -558,14 +486,15 @@ export default function ConfigProteccionSolar({
                               </small>
                             </div>
 
-                            {/* INPUT CANTIDAD */}
                             <input
                               type="number"
                               min={0}
                               className="form-control"
                               style={{ width: 80 }}
                               value={sel}
-                              onChange={(e) => onSetAccUnidades(a, e.target.value)}
+                              onChange={(e) =>
+                                onSetAccUnidades(a, e.target.value)
+                              }
                             />
                           </div>
                         </div>
@@ -575,7 +504,7 @@ export default function ConfigProteccionSolar({
                 )}
               </div>
 
-              {/* ================== RESUMEN ================== */}
+              {/* RESUMEN */}
               <div className="col-12">
                 <hr />
                 <div className="d-flex flex-column gap-2">
@@ -612,7 +541,7 @@ export default function ConfigProteccionSolar({
                 </div>
               </div>
 
-              {/* ================== MENSAJE ================== */}
+              {/* MENSAJE */}
               {msg && (
                 <div
                   className={`col-12 alert ${
@@ -623,7 +552,7 @@ export default function ConfigProteccionSolar({
                 </div>
               )}
 
-              {/* ================== BOTÓN GUARDAR ================== */}
+              {/* BOTÓN GUARDAR */}
               <div className="col-12">
                 <button
                   className="btn w-100"
@@ -633,15 +562,25 @@ export default function ConfigProteccionSolar({
                     fontWeight: 600,
                   }}
                   onClick={guardar}
-                  disabled={saving || guardando || !modeloId || !colorId || precioBase === null}
+                  disabled={
+                    saving ||
+                    guardando ||
+                    !modeloId ||
+                    !colorId ||
+                    precioBase === null
+                  }
                 >
-                  {(saving || guardando) ? (
+                  {saving || guardando ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2"></span>
                       {modoEdicion ? "Actualizando…" : "Guardando…"}
                     </>
                   ) : (
-                    <>{modoEdicion ? "💾 Guardar Cambios" : "💾 Guardar presupuesto"}</>
+                    <>
+                      {modoEdicion
+                        ? "💾 Guardar Cambios"
+                        : "💾 Guardar presupuesto"}
+                    </>
                   )}
                 </button>
               </div>

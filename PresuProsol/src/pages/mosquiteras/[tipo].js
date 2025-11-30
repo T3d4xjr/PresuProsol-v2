@@ -5,23 +5,16 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../api/supabaseClient";
+
+import {
+  getMosqBasePrice,
+  fetchMosqMedidas,
+  fetchMosqOptions,
+  fetchMosqDescuentoCliente,
+  insertarPresupuestoMosq,
+} from "../api/mosquiteras";
 
 /* ============ Helpers de pricing (con logs) ============ */
-
-const getMosqBasePrice = async (alto, ancho) => {
-  console.log("[getMosqBasePrice] buscar precio para:", { alto, ancho });
-  const { data, error, status } = await supabase
-    .from("mosq_medidas")
-    .select("precio")
-    .eq("alto_mm", alto)
-    .eq("ancho_mm", ancho)
-    .maybeSingle();
-
-  console.log("[getMosqBasePrice] status:", status, "data:", data, "error:", error);
-  if (error) return null;
-  return data?.precio ?? null;
-};
 
 const calcColorIncrement = (alto, ancho, precioMl) => {
   const perimetro = 2 * (Number(alto) + Number(ancho)); // mm
@@ -54,7 +47,7 @@ const ACC_IMG_ALIAS = {
   "Goma mosquitera": "GomaMosquitera",
   "Tela mosquitera": "TelaMosquitera",
   "Escuadra central": "EscuadraCentral",
-  "Felpudo": "Felpudo",
+  Felpudo: "Felpudo",
 };
 
 const slugImg = (txt = "") =>
@@ -134,17 +127,9 @@ export default function ConfigMosquitera({
   /* 📏 Cargar medidas */
   useEffect(() => {
     const loadMedidas = async () => {
-      const { data, error, status } = await supabase
-        .from("mosq_medidas")
-        .select("alto_mm, ancho_mm");
-      console.log("[loadMedidas] status:", status, "error:", error, "rows:", data?.length);
-      if (error) return;
-
-      const uniqueAltos = [...new Set((data || []).map((d) => d.alto_mm))].sort((a, b) => a - b);
-      const uniqueAnchos = [...new Set((data || []).map((d) => d.ancho_mm))].sort((a, b) => a - b);
-      console.log("[loadMedidas] altos:", uniqueAltos, "anchos:", uniqueAnchos);
-      setAltos(uniqueAltos);
-      setAnchos(uniqueAnchos);
+      const { altos, anchos } = await fetchMosqMedidas();
+      setAltos(altos);
+      setAnchos(anchos);
     };
 
     if (tipo || modoEdicion) {
@@ -156,46 +141,10 @@ export default function ConfigMosquitera({
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        console.log("📦 [CARGANDO CATÁLOGO] tipo:", tipo);
-        console.log("   modoEdicion:", modoEdicion);
-
-        const { data: col, error: colErr, status: colStatus } = await supabase
-          .from("mosq_colores")
-          .select("id, color, precio, activo, hex");
-        console.log("[mosq_colores] status:", colStatus, "count:", col?.length, "error:", colErr);
-
-        const coloresNorm = (col || [])
-          .filter((c) => c.activo === true)
-          .map((c) => {
-            const hexNorm = normalizeHex(c.hex) || guessHexFromName(c.color);
-            return {
-              id: String(c.id),
-              nombre: c.color,
-              incremento_eur_ml: Number(c.precio_ml ?? c.incremento_ml ?? c.precio ?? 0),
-              hex: hexNorm,
-            };
-          });
-        console.log("✅ [COLORES CARGADOS]:", coloresNorm.length);
-        console.table(coloresNorm);
-        setColores(coloresNorm);
-
-        const { data: acc, error: accErr, status: accStatus } = await supabase
-          .from("mosq_accesorios")
-          .select("*");
-        console.log("[mosq_accesorios] status:", accStatus, "count:", acc?.length, "error:", accErr);
-
-        const accesoriosNorm = (acc || [])
-          .filter((a) => a.activo === true)
-          .map((a) => ({
-            id: a.id,
-            nombre: a.nombre,
-            unidad: a.unidad || "ud",
-            perimetral: Boolean(a.perimetral),
-            precio_unit: Number(a.precio_unit ?? a.precio ?? a.precio_ud ?? 0),
-          }));
-        console.log("✅ [ACCESORIOS CARGADOS]:", accesoriosNorm.length);
-        console.table(accesoriosNorm);
-        setAccesorios(accesoriosNorm);
+        console.log("📦 [CARGANDO CATÁLOGO MOSQ] tipo:", tipo, "modoEdicion:", modoEdicion);
+        const { colores, accesorios } = await fetchMosqOptions();
+        setColores(colores);
+        setAccesorios(accesorios);
       } catch (e) {
         console.error("💥 loadOptions exception:", e);
       }
@@ -212,30 +161,8 @@ export default function ConfigMosquitera({
       const uid = session?.user?.id;
       if (!uid) return;
 
-      try {
-        console.log("[descuento] buscando descuento para auth_user_id:", uid);
-
-        const { data, error, status } = await supabase
-          .from("administracion_usuarios")
-          .select("id, auth_user_id, descuento, descuento_cliente")
-          .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
-          .maybeSingle();
-
-        console.log("[descuento] status:", status, "data:", data, "error:", error);
-
-        if (error) {
-          console.warn("[descuento] error:", error);
-          setDescuento(0);
-          return;
-        }
-
-        const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
-        console.log("[descuento] aplicado =", pct, "%");
-        setDescuento(Number.isFinite(pct) ? pct : 0);
-      } catch (e) {
-        console.error("[descuento] exception:", e);
-        setDescuento(0);
-      }
+      const pct = await fetchMosqDescuentoCliente(uid);
+      setDescuento(pct);
     };
 
     loadDesc();
@@ -435,7 +362,7 @@ export default function ConfigMosquitera({
     setSaving(true);
     setMsg("");
     try {
-      console.log("===== GUARDAR PRESUPUESTO =====");
+      console.log("===== GUARDAR PRESUPUESTO MOSQ =====");
       console.log("[session]", session?.user?.id);
       console.log("[profile]", profile);
 
@@ -479,17 +406,15 @@ export default function ConfigMosquitera({
       console.log("[payload json] >>>");
       console.log(JSON.stringify(payload, null, 2));
 
-      const { data, error, status } = await supabase
-        .from("presupuestos")
-        .insert([payload])
-        .select("id")
-        .maybeSingle();
+      const { data, error, status } = await insertarPresupuestoMosq(payload);
 
-      console.log("[insert presupuestos] status:", status);
-      console.log("[insert presupuestos] data:", data);
+      console.log("[insert presupuestos MOSQ] status:", status);
+      console.log("[insert presupuestos MOSQ] data:", data);
       if (error) {
-        console.error("[insert presupuestos] error:", error);
-        setMsg(`❌ No se pudo guardar el presupuesto: ${error.message || "error desconocido"}`);
+        console.error("[insert presupuestos MOSQ] error:", error);
+        setMsg(
+          `❌ No se pudo guardar el presupuesto: ${error.message || "error desconocido"}`
+        );
         return;
       }
 
@@ -499,7 +424,7 @@ export default function ConfigMosquitera({
         router.push("/mis-presupuestos");
       }, 1500);
     } catch (e) {
-      console.error("💥 [guardarPresupuesto] exception:", e);
+      console.error("💥 [guardarPresupuesto MOSQ] exception:", e);
       setMsg(`❌ Error inesperado: ${e?.message || e}`);
     } finally {
       setSaving(false);
@@ -513,13 +438,16 @@ export default function ConfigMosquitera({
       </Head>
       {!modoEdicion && <Header />}
 
-      <main className={`container ${!modoEdicion ? 'py-5' : ''}`} style={{ maxWidth: 1024 }}>
+      <main className={`container ${!modoEdicion ? "py-5" : ""}`} style={{ maxWidth: 1024 }}>
         {!modoEdicion && (
           <div className="d-flex align-items-center justify-content-between mb-4">
             <h1 className="h4 m-0" style={{ color: "var(--primary)" }}>
               Configurar mosquitera {tipo ? `· ${tipo}` : ""}
             </h1>
-            <button className="btn btn-outline-secondary" onClick={() => router.push("/mosquiteras")}>
+            <button
+              className="btn btn-outline-secondary"
+              onClick={() => router.push("/mosquiteras")}
+            >
               ← Volver
             </button>
           </div>
@@ -531,7 +459,11 @@ export default function ConfigMosquitera({
               {/* Medidas */}
               <div className="col-12 col-md-6">
                 <label className="form-label fw-semibold">Alto (mm)</label>
-                <select className="form-select" value={alto} onChange={(e) => setAlto(e.target.value)}>
+                <select
+                  className="form-select"
+                  value={alto}
+                  onChange={(e) => setAlto(e.target.value)}
+                >
                   <option value="">Selecciona alto…</option>
                   {altos.map((v) => (
                     <option key={v} value={v}>
@@ -542,7 +474,11 @@ export default function ConfigMosquitera({
               </div>
               <div className="col-12 col-md-6">
                 <label className="form-label fw-semibold">Ancho (mm)</label>
-                <select className="form-select" value={ancho} onChange={(e) => setAncho(e.target.value)}>
+                <select
+                  className="form-select"
+                  value={ancho}
+                  onChange={(e) => setAncho(e.target.value)}
+                >
                   <option value="">Selecciona ancho…</option>
                   {anchos.map((v) => (
                     <option key={v} value={v}>
@@ -555,7 +491,9 @@ export default function ConfigMosquitera({
               {/* Accesorios */}
               <div className="col-12">
                 <label className="form-label fw-semibold d-block mb-3">Accesorios</label>
-                {accesorios.length === 0 && <p className="text-muted">No hay accesorios disponibles</p>}
+                {accesorios.length === 0 && (
+                  <p className="text-muted">No hay accesorios disponibles</p>
+                )}
                 <div className="row g-3">
                   {accesorios.map((a) => {
                     const sel = accSel.find((x) => x.id === a.id)?.unidades || 0;
@@ -563,7 +501,14 @@ export default function ConfigMosquitera({
                     return (
                       <div className="col-12 col-md-6" key={a.id}>
                         <div className="d-flex gap-3 align-items-center border rounded p-3">
-                          <div style={{ width: 60, height: 60, position: "relative", flex: "0 0 60px" }}>
+                          <div
+                            style={{
+                              width: 60,
+                              height: 60,
+                              position: "relative",
+                              flex: "0 0 60px",
+                            }}
+                          >
                             <Image
                               src={img}
                               alt={a.nombre}
@@ -630,7 +575,9 @@ export default function ConfigMosquitera({
                                 (c.hex || "").toUpperCase() === "#FFFFFF"
                                   ? "1px solid #ddd"
                                   : "1px solid rgba(0,0,0,0.05)",
-                              boxShadow: selected ? "0 0 0 3px rgba(99,102,241,0.35)" : "none",
+                              boxShadow: selected
+                                ? "0 0 0 3px rgba(99,102,241,0.35)"
+                                : "none",
                               display: "inline-block",
                             }}
                           />
@@ -673,12 +620,19 @@ export default function ConfigMosquitera({
                     <>
                       <div className="d-flex justify-content-between">
                         <span className="text-muted">Subtotal:</span>
-                        <strong className="text-muted">{(precioBase + incColor + accTotal).toFixed(2)} €</strong>
+                        <strong className="text-muted">
+                          {(precioBase + incColor + accTotal).toFixed(2)} €
+                        </strong>
                       </div>
                       <div className="d-flex justify-content-between">
                         <span className="text-muted">Descuento ({descuento}%):</span>
                         <strong className="text-muted text-danger">
-                          -{((precioBase + incColor + accTotal) * (descuento / 100)).toFixed(2)} €
+                          -
+                          {(
+                            (precioBase + incColor + accTotal) *
+                            (descuento / 100)
+                          ).toFixed(2)}{" "}
+                          €
                         </strong>
                       </div>
                     </>
@@ -694,13 +648,19 @@ export default function ConfigMosquitera({
                   <hr />
                   <div className="d-flex justify-content-between fs-4">
                     <span className="fw-bold">TOTAL:</span>
-                    <strong className="fw-bold" style={{ color: "#198754" }}>{total.toFixed(2)} €</strong>
+                    <strong className="fw-bold" style={{ color: "#198754" }}>
+                      {total.toFixed(2)} €
+                    </strong>
                   </div>
                 </div>
               </div>
 
               {msg && (
-                <div className={`col-12 alert ${msg.startsWith("✅") ? "alert-success" : "alert-warning"} mb-0`}>
+                <div
+                  className={`col-12 alert ${
+                    msg.startsWith("✅") ? "alert-success" : "alert-warning"
+                  } mb-0`}
+                >
                   {msg}
                 </div>
               )}
@@ -708,11 +668,15 @@ export default function ConfigMosquitera({
               <div className="col-12">
                 <button
                   className="btn w-100"
-                  style={{ background: "var(--accent)", color: "var(--surface)", fontWeight: 600 }}
+                  style={{
+                    background: "var(--accent)",
+                    color: "var(--surface)",
+                    fontWeight: 600,
+                  }}
                   onClick={guardarPresupuesto}
                   disabled={saving || guardando || !alto || !ancho || !precioBase}
                 >
-                  {(saving || guardando) ? (
+                  {saving || guardando ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2"></span>
                       {modoEdicion ? "Actualizando…" : "Guardando…"}

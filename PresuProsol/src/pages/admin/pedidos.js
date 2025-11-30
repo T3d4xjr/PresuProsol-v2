@@ -3,8 +3,13 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../api/supabaseClient";
 import Header from "../../components/Header";
+
+// 👉 Helpers de pedidos (Supabase encapsulado)
+import {
+  fetchAdminPedidos,
+  updatePedidoEstado,
+} from "../api/admin-pedidos-api";
 
 // 👉 Email de pedido enviado
 import { enviarAvisoPedidoEnviado } from "../api/emailNotifications";
@@ -31,51 +36,14 @@ export default function AdminPedidos() {
     setLoadingData(true);
 
     try {
-      console.log("🔍 Cargando pedidos...");
+      const { data, error } = await fetchAdminPedidos();
 
-      const { data: pedidosData, error: pedidosError } = await supabase
-        .from("pedidos")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (pedidosError) {
-        console.error("❌ Error cargando pedidos:", pedidosError);
+      if (error) {
+        console.error("❌ Error cargando pedidos:", error);
         setPedidos([]);
-        setLoadingData(false);
-        return;
+      } else {
+        setPedidos(data || []);
       }
-
-      if (!pedidosData || pedidosData.length === 0) {
-        setPedidos([]);
-        setLoadingData(false);
-        return;
-      }
-
-      const pedidosConDatos = await Promise.all(
-        pedidosData.map(async (pedido) => {
-          const { data: usuarioData } = await supabase
-            .from("usuarios")
-            .select("usuario, email")
-            .eq("id", pedido.user_id)
-            .single();
-
-          const { data: presupuestoData } = await supabase
-            .from("presupuestos")
-            .select("tipo, total, color")
-            .eq("id", pedido.presupuesto_id)
-            .single();
-
-          return {
-            ...pedido,
-            usuario_nombre: usuarioData?.usuario || "Usuario desconocido",
-            usuario_email: usuarioData?.email || "N/A",
-            presupuesto_tipo: presupuestoData?.tipo || "N/A",
-          };
-        })
-      );
-
-      console.log("✅ Pedidos con datos completos:", pedidosConDatos);
-      setPedidos(pedidosConDatos);
     } catch (error) {
       console.error("❌ Error inesperado:", error);
       setPedidos([]);
@@ -91,14 +59,11 @@ export default function AdminPedidos() {
     // Buscar pedido en memoria para obtener email y nombre
     const pedido = pedidos.find((p) => p.id === id);
 
-    const { error } = await supabase
-      .from("pedidos")
-      .update({ estado: nuevoEstado })
-      .eq("id", id);
+    const { error } = await updatePedidoEstado(id, nuevoEstado);
 
     if (error) {
       console.error("❌ Error actualizando estado:", error);
-      alert("Error actualizando estado: " + error.message);
+      alert("Error actualizando estado: " + (error.message || error));
     } else {
       console.log("✅ Estado actualizado correctamente");
 
@@ -238,7 +203,6 @@ export default function AdminPedidos() {
           </>
         )}
       </main>
-
     </>
   );
 }

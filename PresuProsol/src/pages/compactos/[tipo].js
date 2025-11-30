@@ -4,7 +4,14 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../api/supabaseClient";
+
+// 🔗 Helpers API (ya no usamos supabase directo aquí)
+import {
+  fetchCompactosCatalog,
+  fetchCompactosDescuento,
+  fetchPrecioGuiaMl,
+  insertarPresupuestoCompacto,
+} from "../api/compactos-api";
 
 // MAPEO DE IMÁGENES DE ACCESORIOS
 const ACCESORIO_IMAGENES = {
@@ -57,10 +64,10 @@ export default function ConfigCompacto({
 }) {
   const router = useRouter();
   const { tipo: tipoQuery } = router.query;
-  
+
   // Usar tipoOverride si existe (modo edición), sino usar query
   const tipo = tipoOverride || tipoQuery;
-  
+
   const { session, profile, loading } = useAuth();
 
   // Catálogo
@@ -68,7 +75,7 @@ export default function ConfigCompacto({
   const [acabados, setAcabados] = useState([]);
   const [accesorios, setAccesorios] = useState([]);
 
-  // Selección - INICIALIZAR con datosIniciales si existe
+  // Selección
   const [modeloId, setModeloId] = useState("");
   const [acabadoId, setAcabadoId] = useState("");
   const [alto, setAlto] = useState("");
@@ -103,78 +110,49 @@ export default function ConfigCompacto({
 
   /* ================== ACCESO ================== */
   useEffect(() => {
-    if (!loading && !session) {
+    if (!loading && !session && !modoEdicion) {
       router.replace("/login?m=login-required");
     }
-  }, [loading, session, router]);
+  }, [loading, session, router, modoEdicion]);
 
   /* ================== CARGA CATÁLOGO ================== */
   useEffect(() => {
     const load = async () => {
       try {
-        console.log("📦 [CARGANDO CATÁLOGO] tipo:", tipo);
-        console.log("   modoEdicion:", modoEdicion);
+        console.log("📦 [CARGANDO CATÁLOGO] tipo:", tipo, "modoEdicion:", modoEdicion);
 
-        // MODELOS - filtrados por tipo
-        const { data: m, error: mErr } = await supabase
-          .from("compactos_modelos")
-          .select("*")
-          .eq("activo", true)
-          .order("nombre");
+        const { modelos, acabados, accesorios, error } =
+          await fetchCompactosCatalog();
 
-        if (mErr) {
-          console.error("❌ [compactos_modelos] error:", mErr);
-          setModelos([]);
-        } else {
-          console.log("✅ [MODELOS CARGADOS]:", m?.length);
-          console.table(m);
-          setModelos(m || []);
+        if (error) {
+          console.error("❌ [fetchCompactosCatalog] error:", error);
         }
 
-        // ACABADOS
-        const { data: a, error: aErr } = await supabase
-          .from("compactos_acabados")
-          .select("*")
-          .eq("activo", true)
-          .order("orden");
+        console.log("✅ [MODELOS CARGADOS]:", modelos.length);
+        console.table(modelos);
+        console.log("✅ [ACABADOS CARGADOS]:", acabados.length);
+        console.table(acabados);
+        console.log("✅ [ACCESORIOS CARGADOS]:", accesorios.length);
+        console.table(accesorios);
 
-        if (aErr) {
-          console.error("❌ [compactos_acabados] error:", aErr);
-          setAcabados([]);
-        } else {
-          console.log("✅ [ACABADOS CARGADOS]:", a?.length);
-          console.table(a);
-          setAcabados(a || []);
-        }
-
-        // ACCESORIOS
-        const { data: acc, error: accErr } = await supabase
-          .from("compactos_accesorios")
-          .select("*")
-          .eq("activo", true)
-          .order("nombre");
-
-        if (accErr) {
-          console.error("❌ [compactos_accesorios] error:", accErr);
-          setAccesorios([]);
-        } else {
-          console.log("✅ [ACCESORIOS CARGADOS]:", acc?.length);
-          console.table(acc);
-          setAccesorios(acc || []);
-        }
+        setModelos(modelos || []);
+        setAcabados(acabados || []);
+        setAccesorios(accesorios || []);
       } catch (e) {
         console.error("❌ [load catálogo] exception:", e);
+        setModelos([]);
+        setAcabados([]);
+        setAccesorios([]);
       }
     };
 
-    // CARGAR SIEMPRE - tanto en modo normal como edición
     if (tipo || modoEdicion) {
       console.log("🔄 Iniciando carga de catálogo...");
       load();
     } else {
       console.log("⏸️ Esperando tipo o modo edición...");
     }
-  }, [tipo, modoEdicion]); // IMPORTANTE: agregar modoEdicion como dependencia
+  }, [tipo, modoEdicion]);
 
   /* ================== DESCUENTO CLIENTE ================== */
   useEffect(() => {
@@ -182,45 +160,14 @@ export default function ConfigCompacto({
       if (!session?.user?.id) return;
 
       const uid = session.user.id;
+      const { descuento: pct, error } = await fetchCompactosDescuento(uid);
 
-      try {
-        console.log("[compactos descuento] buscando para auth_user_id:", uid);
-
-        const { data, error, status } = await supabase
-          .from("administracion_usuarios")
-          .select("id, auth_user_id, descuento, descuento_cliente")
-          .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
-          .maybeSingle();
-
-        console.log(
-          "[compactos descuento] status:",
-          status,
-          "data:",
-          data,
-          "error:",
-          error
-        );
-
-        if (error) {
-          console.warn("[compactos descuento] error:", error);
-          setDescuento(0);
-          return;
-        }
-
-        if (!data) {
-          console.warn("[compactos descuento] no se encontró usuario");
-          setDescuento(0);
-          return;
-        }
-
-        const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
-        console.log("[compactos descuento] aplicado =", pct, "%");
-
-        setDescuento(Number.isFinite(pct) ? pct : 0);
-      } catch (e) {
-        console.error("[compactos descuento] exception:", e);
-        setDescuento(0);
+      if (error) {
+        console.warn("[compactos descuento] error:", error);
       }
+
+      console.log("[compactos descuento] aplicado =", pct, "%");
+      setDescuento(pct || 0);
     };
 
     loadDesc();
@@ -232,39 +179,35 @@ export default function ConfigCompacto({
       setPrecioGuiaMl(null);
       if (!modeloId || !acabadoId) return;
 
-      try {
-        console.log("🔍 [BUSCANDO PRECIO]");
-        console.log("   modelo_id seleccionado:", modeloId);
-        console.log("   acabado_id seleccionado:", acabadoId);
-        console.log("   modelo nombre:", modeloSel?.nombre);
-        console.log("   acabado nombre:", acabadoSel?.nombre);
+      console.log("🔍 [BUSCANDO PRECIO]", {
+        modeloId,
+        acabadoId,
+        nombreModelo: modeloSel?.nombre,
+        nombreAcabado: acabadoSel?.nombre,
+      });
 
-        const { data, error } = await supabase
-          .from("compactos_guias_precios")
-          .select("precio_ml")
-          .eq("modelo_id", modeloId)
-          .eq("acabado_id", acabadoId)
-          .maybeSingle();
+      const { precioMl, error } = await fetchPrecioGuiaMl(
+        modeloId,
+        acabadoId
+      );
 
-        if (error) {
-          console.error("❌ [ERROR en búsqueda]:", error);
-          setPrecioGuiaMl(null);
-          return;
-        }
-
-        if (!data) {
-          console.warn("⚠️ NO ENCONTRADO precio para combinación:");
-          console.warn("   modelo_id:", modeloId);
-          console.warn("   acabado_id:", acabadoId);
-          setPrecioGuiaMl(null);
-        } else {
-          console.log("✅ PRECIO ENCONTRADO:", data.precio_ml, "€/ml");
-          setPrecioGuiaMl(Number(data.precio_ml || 0));
-        }
-      } catch (e) {
-        console.error("💥 EXCEPTION:", e);
+      if (error) {
+        console.error("❌ [fetchPrecioGuiaMl] error:", error);
         setPrecioGuiaMl(null);
+        return;
       }
+
+      if (precioMl === null) {
+        console.warn("⚠️ NO ENCONTRADO precio para combinación:", {
+          modeloId,
+          acabadoId,
+        });
+        setPrecioGuiaMl(null);
+        return;
+      }
+
+      console.log("✅ PRECIO ENCONTRADO:", precioMl, "€/ml");
+      setPrecioGuiaMl(Number(precioMl));
     };
 
     loadPrecioGuia();
@@ -272,12 +215,14 @@ export default function ConfigCompacto({
 
   /* ================== CÁLCULOS ================== */
   useEffect(() => {
-    // Convertimos a número de forma segura (acepta coma o punto)
     const altoNum = alto ? parseFloat(String(alto).replace(",", ".")) : 0;
     const anchoNum = ancho ? parseFloat(String(ancho).replace(",", ".")) : 0;
 
     const tieneMedidas =
-      altoNum > 0 && anchoNum > 0 && precioGuiaMl !== null && !isNaN(precioGuiaMl);
+      altoNum > 0 &&
+      anchoNum > 0 &&
+      precioGuiaMl !== null &&
+      !isNaN(precioGuiaMl);
 
     let pGuias = 0;
 
@@ -347,27 +292,23 @@ export default function ConfigCompacto({
   useEffect(() => {
     if (!datosIniciales || !modoEdicion) return;
 
-    console.log("📝 [MODO EDICIÓN] Cargando datos iniciales:", datosIniciales);
+    console.log("📝 [MODO EDICIÓN COMPACTO] Cargando datos iniciales:", datosIniciales);
 
-    // Cargar medidas
+    // Medidas
     if (datosIniciales.alto_mm) {
-      console.log("   → Alto:", datosIniciales.alto_mm);
       setAlto(datosIniciales.alto_mm.toString());
     }
     if (datosIniciales.ancho_mm) {
-      console.log("   → Ancho:", datosIniciales.ancho_mm);
       setAncho(datosIniciales.ancho_mm.toString());
     }
 
-    // Cargar accesorios
+    // Accesorios
     if (datosIniciales.accesorios && Array.isArray(datosIniciales.accesorios)) {
-      console.log("   → Accesorios:", datosIniciales.accesorios.length);
       setAccSel(datosIniciales.accesorios);
     }
 
-    // Cargar descuento (solo si no viene del perfil)
+    // Descuento inicial (si no viene del perfil)
     if (datosIniciales.descuento_cliente && descuento === 0) {
-      console.log("   → Descuento inicial:", datosIniciales.descuento_cliente);
       setDescuento(Number(datosIniciales.descuento_cliente));
     }
   }, [datosIniciales, modoEdicion, descuento]);
@@ -377,7 +318,6 @@ export default function ConfigCompacto({
     if (!datosIniciales || !modoEdicion) return;
     if (modelos.length === 0 || acabados.length === 0) {
       console.log("⏸️ [MODO EDICIÓN] Esperando catálogos...");
-      console.log("   Modelos:", modelos.length, "Acabados:", acabados.length);
       return;
     }
 
@@ -388,15 +328,15 @@ export default function ConfigCompacto({
     // Buscar acabado por nombre (guardado en color)
     if (datosIniciales.color && !acabadoId) {
       const acabadoEncontrado = acabados.find(
-        a => a.nombre.toLowerCase() === datosIniciales.color.toLowerCase()
+        (a) => a.nombre.toLowerCase() === datosIniciales.color.toLowerCase()
       );
-      
+
       if (acabadoEncontrado) {
         console.log("✅ Acabado encontrado:", acabadoEncontrado);
         setAcabadoId(acabadoEncontrado.id);
       } else {
         console.warn("⚠️ No se encontró acabado:", datosIniciales.color);
-        console.log("   Acabados disponibles:", acabados.map(a => a.nombre));
+        console.log("   Acabados disponibles:", acabados.map((a) => a.nombre));
       }
     }
 
@@ -405,7 +345,6 @@ export default function ConfigCompacto({
       console.log("ℹ️ Seleccionando primer modelo disponible:", modelos[0].nombre);
       setModeloId(modelos[0].id);
     }
-
   }, [datosIniciales, modoEdicion, modelos, acabados, modeloId, acabadoId]);
 
   /* ================== GUARDAR ================== */
@@ -431,7 +370,7 @@ export default function ConfigCompacto({
         total: Number(total),
       };
 
-      console.log("💾 [MODO EDICIÓN] Enviando datos:", datosPresupuesto);
+      console.log("💾 [MODO EDICIÓN COMPACTO] Enviando datos:", datosPresupuesto);
       onSubmit(datosPresupuesto);
       return;
     }
@@ -487,15 +426,11 @@ export default function ConfigCompacto({
 
       console.log("[guardar compacto] payload:", payload);
 
-      const { data, error } = await supabase
-        .from("presupuestos")
-        .insert([payload])
-        .select("id")
-        .maybeSingle();
+      const { error } = await insertarPresupuestoCompacto(payload);
 
       if (error) {
         console.error("[insert presupuesto]", error);
-        setMsg(`❌ No se pudo guardar: ${error.message}`);
+        setMsg(`❌ No se pudo guardar: ${error.message || "error desconocido"}`);
         return;
       }
 
@@ -518,16 +453,19 @@ export default function ConfigCompacto({
       <Head>
         <title>Configurar Compacto Cajón {tipo?.toUpperCase()} · PresuProsol</title>
       </Head>
-      
-      {/* Solo mostrar Header principal si NO está en modo edición */}
+
+      {/* Solo Header principal si NO está en modo edición */}
       {!modoEdicion && <Header />}
 
-      <main className={`container ${!modoEdicion ? 'py-5' : ''}`} style={{ maxWidth: 1024 }}>
-        {/* 🔥 ESTE ES EL HEADER SECUNDARIO - Solo mostrarlo si NO está en modo edición */}
+      <main
+        className={`container ${!modoEdicion ? "py-5" : ""}`}
+        style={{ maxWidth: 1024 }}
+      >
+        {/* Header secundario solo en modo normal */}
         {!modoEdicion && (
           <div className="d-flex align-items-center justify-content-between mb-4">
             <h1 className="h4 m-0" style={{ color: "var(--primary)" }}>
-              Compacto cajón {tipo?.toUpperCase()}
+              {tituloTipo}
             </h1>
             <button
               className="btn btn-outline-secondary"
@@ -549,9 +487,7 @@ export default function ConfigCompacto({
                   value={modeloId}
                   onChange={(e) => {
                     console.log("🔄 Modelo seleccionado:", e.target.value);
-                    const modelo = modelos.find(
-                      (m) => m.id === e.target.value
-                    );
+                    const modelo = modelos.find((m) => m.id === e.target.value);
                     console.log("   Datos del modelo:", modelo);
                     setModeloId(e.target.value);
                   }}
@@ -758,7 +694,11 @@ export default function ConfigCompacto({
                 <div className="d-flex flex-column gap-2">
                   <div className="d-flex justify-content-between">
                     <span className="text-muted">
-                      Precio guías{precioGuiaMl !== null ? ` (${precioGuiaMl.toFixed(2)} €/ml)` : ''}:
+                      Precio guías
+                      {precioGuiaMl !== null
+                        ? ` (${precioGuiaMl.toFixed(2)} €/ml)`
+                        : ""}
+                      :
                     </span>
                     <strong className="text-muted">
                       {precioGuias.toFixed(2)} €
@@ -781,9 +721,16 @@ export default function ConfigCompacto({
                         </strong>
                       </div>
                       <div className="d-flex justify-content-between">
-                        <span className="text-muted">Descuento ({descuento}%):</span>
+                        <span className="text-muted">
+                          Descuento ({descuento}%):
+                        </span>
                         <strong className="text-muted text-danger">
-                          -{((precioGuias + accTotal) * (descuento / 100)).toFixed(2)} €
+                          -
+                          {(
+                            (precioGuias + accTotal) *
+                            (descuento / 100)
+                          ).toFixed(2)}{" "}
+                          €
                         </strong>
                       </div>
                     </>
@@ -827,7 +774,8 @@ export default function ConfigCompacto({
                   }}
                   onClick={guardar}
                   disabled={
-                    (saving || guardando) ||
+                    saving ||
+                    guardando ||
                     !modeloId ||
                     !acabadoId ||
                     !alto ||
@@ -835,13 +783,17 @@ export default function ConfigCompacto({
                     precioGuiaMl === null
                   }
                 >
-                  {(saving || guardando) ? (
+                  {saving || guardando ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2"></span>
                       {modoEdicion ? "Actualizando…" : "Guardando…"}
                     </>
                   ) : (
-                    <>{modoEdicion ? "💾 Guardar Cambios" : "💾 Guardar presupuesto"}</>
+                    <>
+                      {modoEdicion
+                        ? "💾 Guardar Cambios"
+                        : "💾 Guardar presupuesto"}
+                    </>
                   )}
                 </button>
               </div>

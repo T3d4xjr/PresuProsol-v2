@@ -4,7 +4,13 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../api/supabaseClient";
+
+import {
+  fetchCatalogoPuertasSeccionales,
+  fetchDescuentoClientePuertas,
+  fetchPrecioPuertaSeccional,
+  insertarPresupuestoPuertaSeccional,
+} from "../api/puertasSeccionales";
 
 export default function ConfigPuertaSeccional({
   datosIniciales = null,
@@ -15,9 +21,9 @@ export default function ConfigPuertaSeccional({
 }) {
   const router = useRouter();
   const { tipo: tipoQuery } = router.query;
-  
+
   const tipo = tipoOverride || tipoQuery;
-  
+
   const { session, profile, loading } = useAuth();
 
   const [medidas, setMedidas] = useState([]);
@@ -65,48 +71,17 @@ export default function ConfigPuertaSeccional({
       try {
         console.log("🔄 Cargando catálogo puertas…");
 
-        // MEDIDAS
-        const { data: m, error: mErr } = await supabase
-          .from("puertas_medidas")
-          .select("*");
+        const { medidas, colores, accesorios } =
+          await fetchCatalogoPuertasSeccionales();
 
-        if (mErr) {
-          console.error("[puertas_medidas] error:", mErr);
-          setMedidas([]);
-        } else {
-          const sortedMedidas = (m || []).sort((a, b) => {
-            if (a.ancho_mm !== b.ancho_mm) return a.ancho_mm - b.ancho_mm;
-            return a.alto_mm - b.alto_mm;
-          });
-
-          setMedidas(sortedMedidas);
-        }
-
-        // COLORES
-        const { data: c, error: cErr } = await supabase
-          .from("puertas_colores")
-          .select("*");
-
-        if (cErr) {
-          console.error("[puertas_colores] error:", cErr);
-          setColores([]);
-        } else {
-          setColores((c || []).filter((x) => x.activo === true));
-        }
-
-        // ACCESORIOS
-        const { data: acc, error: accErr } = await supabase
-          .from("puertas_accesorios")
-          .select("*");
-
-        if (accErr) {
-          console.error("[puertas_accesorios] error:", accErr);
-          setAccesorios([]);
-        } else {
-          setAccesorios((acc || []).filter((x) => x.activo === true));
-        }
+        setMedidas(medidas);
+        setColores(colores);
+        setAccesorios(accesorios);
       } catch (e) {
         console.error("💥 Error cargando catálogo:", e);
+        setMedidas([]);
+        setColores([]);
+        setAccesorios([]);
       }
     };
 
@@ -118,22 +93,9 @@ export default function ConfigPuertaSeccional({
     const loadDesc = async () => {
       if (!session?.user?.id) return;
 
-      const uid = session.user.id;
-
       try {
-        const { data, error } = await supabase
-          .from("administracion_usuarios")
-          .select("id, auth_user_id, descuento, descuento_cliente")
-          .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
-          .maybeSingle();
-
-        if (error || !data) {
-          setDescuento(0);
-          return;
-        }
-
-        const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
-        setDescuento(Number.isFinite(pct) ? pct : 0);
+        const pct = await fetchDescuentoClientePuertas(session.user.id);
+        setDescuento(pct);
       } catch (e) {
         console.error("[puertas descuento] exception:", e);
         setDescuento(0);
@@ -147,16 +109,29 @@ export default function ConfigPuertaSeccional({
   useEffect(() => {
     if (!datosIniciales || !modoEdicion) return;
 
-    console.log("📝 [MODO EDICIÓN PUERTA SECCIONAL] Cargando datos iniciales:", datosIniciales);
+    console.log(
+      "📝 [MODO EDICIÓN PUERTA SECCIONAL] Cargando datos iniciales:",
+      datosIniciales
+    );
 
     // Medida - buscar por alto y ancho
-    if (datosIniciales.alto_mm && datosIniciales.ancho_mm && medidas.length > 0) {
+    if (
+      datosIniciales.alto_mm &&
+      datosIniciales.ancho_mm &&
+      medidas.length > 0
+    ) {
       const medidaEncontrada = medidas.find(
-        (m) => m.alto_mm === Number(datosIniciales.alto_mm) && 
-               m.ancho_mm === Number(datosIniciales.ancho_mm)
+        (m) =>
+          m.alto_mm === Number(datosIniciales.alto_mm) &&
+          m.ancho_mm === Number(datosIniciales.ancho_mm)
       );
       if (medidaEncontrada) {
-        console.log("   → Medida encontrada:", medidaEncontrada.ancho_mm, "×", medidaEncontrada.alto_mm);
+        console.log(
+          "   → Medida encontrada:",
+          medidaEncontrada.ancho_mm,
+          "×",
+          medidaEncontrada.alto_mm
+        );
         setMedidaId(String(medidaEncontrada.id));
       }
     }
@@ -174,7 +149,10 @@ export default function ConfigPuertaSeccional({
 
     // Accesorios
     if (datosIniciales.accesorios && Array.isArray(datosIniciales.accesorios)) {
-      console.log("   → Accesorios:", datosIniciales.accesorios.length);
+      console.log(
+        "   → Accesorios:",
+        datosIniciales.accesorios.length
+      );
       const accesoriosNormalizados = datosIniciales.accesorios.map((a) => ({
         id: a.id,
         nombre: a.nombre,
@@ -217,33 +195,18 @@ export default function ConfigPuertaSeccional({
       if (!medida || !color) return;
 
       try {
-        const { data, error } = await supabase
-          .from("puertas_precios")
-          .select(`
-            *,
-            color:puertas_colores(*)
-          `)
-          .eq("ancho_mm", medida.ancho_mm)
-          .eq("alto_mm", medida.alto_mm)
-          .eq("color_id", color.id)
-          .maybeSingle();
+        const { precio, incrementoColor } = await fetchPrecioPuertaSeccional({
+          ancho_mm: medida.ancho_mm,
+          alto_mm: medida.alto_mm,
+          colorId: color.id,
+        });
 
-        if (error || !data) {
-          console.warn("[precio puertas] no encontrado:", error);
-          setPrecioBase(null);
-          return;
-        }
-
-        setPrecioBase(Number(data.precio || 0));
-
-        if (data.color?.incremento_eur_m2) {
-          const area =
-            (medida.ancho_mm * medida.alto_mm) / 1_000_000;
-          const inc = area * Number(data.color.incremento_eur_m2);
-          setIncrementoColor(+inc.toFixed(2));
-        }
+        setPrecioBase(precio);
+        setIncrementoColor(incrementoColor);
       } catch (e) {
         console.error("💥 Error precio:", e);
+        setPrecioBase(null);
+        setIncrementoColor(0);
       }
     };
 
@@ -362,7 +325,7 @@ export default function ConfigPuertaSeccional({
     // MODO EDICIÓN: usar callback
     if (modoEdicion && onSubmit) {
       const subtotal = (precioBase || 0) + incrementoColor + accTotal;
-      
+
       const datosPresupuesto = {
         cliente: profile?.usuario || datosIniciales?.cliente || "",
         email: profile?.email || datosIniciales?.email || "",
@@ -383,7 +346,10 @@ export default function ConfigPuertaSeccional({
         total: total,
       };
 
-      console.log("💾 [MODO EDICIÓN PUERTA SECCIONAL] Enviando datos:", datosPresupuesto);
+      console.log(
+        "💾 [MODO EDICIÓN PUERTA SECCIONAL] Enviando datos:",
+        datosPresupuesto
+      );
       onSubmit(datosPresupuesto);
       return;
     }
@@ -404,7 +370,9 @@ export default function ConfigPuertaSeccional({
       }
 
       if (precioBase === null) {
-        setMsg("⚠️ No hay precio disponible para esta combinación. Contacta con administración.");
+        setMsg(
+          "⚠️ No hay precio disponible para esta combinación. Contacta con administración."
+        );
         return;
       }
 
@@ -435,15 +403,7 @@ export default function ConfigPuertaSeccional({
 
       console.log("💾 [GUARDANDO PUERTA]", payload);
 
-      const { error } = await supabase
-        .from("presupuestos")
-        .insert([payload]);
-
-      if (error) {
-        console.error("[insert presupuesto]", error);
-        setMsg(`❌ No se pudo guardar: ${error.message}`);
-        return;
-      }
+      await insertarPresupuestoPuertaSeccional(payload);
 
       setMsg("✅ Presupuesto guardado correctamente.");
 
@@ -464,10 +424,13 @@ export default function ConfigPuertaSeccional({
       <Head>
         <title>{`Configurar ${tituloTipo} · PresuProsol`}</title>
       </Head>
-      
+
       {!modoEdicion && <Header />}
 
-      <main className={`container ${!modoEdicion ? 'py-4' : ''}`} style={{ maxWidth: 980 }}>
+      <main
+        className={`container ${!modoEdicion ? "py-4" : ""}`}
+        style={{ maxWidth: 980 }}
+      >
         {!modoEdicion && (
           <div className="d-flex align-items-center justify-content-between mb-3">
             <h1 className="h4 m-0">{tituloTipo}</h1>
@@ -544,18 +507,19 @@ export default function ConfigPuertaSeccional({
 
               {/* ACCESORIOS */}
               <div className="col-12">
-                <label className="form-label d-block">
-                  Accesorios
-                </label>
+                <label className="form-label d-block">Accesorios</label>
 
                 {accesorios.length === 0 && (
-                  <small className="text-muted">No hay accesorios disponibles</small>
+                  <small className="text-muted">
+                    No hay accesorios disponibles
+                  </small>
                 )}
 
                 {accesorios.length > 0 && (
                   <div className="row g-2">
                     {accesorios.map((a) => {
-                      const sel = accSel.find((x) => x.id === a.id)?.unidades || 0;
+                      const sel =
+                        accSel.find((x) => x.id === a.id)?.unidades || 0;
                       const imagenUrl = getImagenAccesorio(a.nombre);
 
                       return (
@@ -570,15 +534,18 @@ export default function ConfigPuertaSeccional({
                                   height: 80,
                                   objectFit: "cover",
                                   borderRadius: 8,
-                                  flexShrink: 0
+                                  flexShrink: 0,
                                 }}
                                 onError={(e) => {
-                                  console.error("❌ Error cargando imagen:", imagenUrl);
+                                  console.error(
+                                    "❌ Error cargando imagen:",
+                                    imagenUrl
+                                  );
                                   e.target.style.display = "none";
                                 }}
                               />
                             )}
-                            
+
                             <div className="flex-grow-1">
                               <div className="fw-semibold">{a.nombre}</div>
                               <small className="text-muted">
@@ -593,7 +560,9 @@ export default function ConfigPuertaSeccional({
                               className="form-control"
                               style={{ width: 80 }}
                               value={sel}
-                              onChange={(e) => onSetAccUnidades(a, e.target.value)}
+                              onChange={(e) =>
+                                onSetAccUnidades(a, e.target.value)
+                              }
                             />
                           </div>
                         </div>
@@ -604,7 +573,8 @@ export default function ConfigPuertaSeccional({
 
                 {accSel.length > 0 && (
                   <small className="text-muted d-block mt-2">
-                    💡 Total accesorios: <strong>{accTotal.toFixed(2)} €</strong>
+                    💡 Total accesorios:{" "}
+                    <strong>{accTotal.toFixed(2)} €</strong>
                   </small>
                 )}
               </div>
@@ -663,19 +633,24 @@ export default function ConfigPuertaSeccional({
                   }}
                   onClick={guardar}
                   disabled={
-                    saving || guardando ||
+                    saving ||
+                    guardando ||
                     !medidaId ||
                     !colorId ||
                     precioBase === null
                   }
                 >
-                  {(saving || guardando) ? (
+                  {saving || guardando ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2"></span>
                       {modoEdicion ? "Actualizando…" : "Guardando…"}
                     </>
                   ) : (
-                    <>{modoEdicion ? "💾 Guardar Cambios" : "💾 Guardar presupuesto"}</>
+                    <>
+                      {modoEdicion
+                        ? "💾 Guardar Cambios"
+                        : "💾 Guardar presupuesto"}
+                    </>
                   )}
                 </button>
               </div>

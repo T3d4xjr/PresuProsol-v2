@@ -3,7 +3,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "./api/supabaseClient";
+import { fetchPoliticaPrivacidadActiva } from "./api/politicaPrivacidad";
 import styles from "../styles/Politica.module.css";
 
 export default function PoliticaPrivacidad() {
@@ -31,21 +31,9 @@ export default function PoliticaPrivacidad() {
       try {
         console.log("🔐 [CARGANDO POLÍTICA DE PRIVACIDAD]");
         setCargando(true);
-        
-        const { data, error } = await supabase
-          .from("politica_privacidad")
-          .select("*")
-          .eq("activo", true)
-          .order("orden", { ascending: true });
 
-        if (error) {
-          console.error("❌ Error cargando política:", error);
-          setSecciones([]);
-          return;
-        }
-
-        console.log("✅ Política cargada:", data?.length);
-        setSecciones(data || []);
+        const data = await fetchPoliticaPrivacidadActiva();
+        setSecciones(data);
       } catch (e) {
         console.error("💥 Exception cargando política:", e);
         setSecciones([]);
@@ -88,7 +76,10 @@ export default function PoliticaPrivacidad() {
     <>
       <Head>
         <title>Política de Privacidad · PresuProsol</title>
-        <meta name="description" content="Política de privacidad y protección de datos de PresuProsol" />
+        <meta
+          name="description"
+          content="Política de privacidad y protección de datos de PresuProsol"
+        />
       </Head>
 
       <Header />
@@ -97,11 +88,17 @@ export default function PoliticaPrivacidad() {
         <div className={styles.hero}>
           <h1 className={styles.title}>Política de Privacidad</h1>
           <p className={styles.subtitle}>
-            Última actualización: {new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+            Última actualización:{" "}
+            {new Date().toLocaleDateString("es-ES", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
           </p>
           <p className={styles.intro}>
-            En PresuProsol nos tomamos muy en serio la protección de tus datos personales.
-            Esta política explica cómo recopilamos, usamos y protegemos tu información.
+            En PresuProsol nos tomamos muy en serio la protección de tus datos
+            personales. Esta política explica cómo recopilamos, usamos y
+            protegemos tu información.
           </p>
         </div>
 
@@ -121,7 +118,9 @@ export default function PoliticaPrivacidad() {
               {secciones.map((seccion, index) => (
                 <div
                   key={seccion.id}
-                  className={`${styles.seccionItem} ${openId === seccion.id ? styles.seccionItemOpen : ""}`}
+                  className={`${styles.seccionItem} ${
+                    openId === seccion.id ? styles.seccionItemOpen : ""
+                  }`}
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <button
@@ -136,9 +135,17 @@ export default function PoliticaPrivacidad() {
                     </span>
                   </button>
 
-                  <div className={`${styles.seccionContenido} ${openId === seccion.id ? styles.seccionContenidoOpen : ""}`}>
+                  <div
+                    className={`${styles.seccionContenido} ${
+                      openId === seccion.id
+                        ? styles.seccionContenidoOpen
+                        : ""
+                    }`}
+                  >
                     <div className={styles.contenidoText}>
-                      <p style={{ whiteSpace: 'pre-line' }}>{seccion.contenido}</p>
+                      <p style={{ whiteSpace: "pre-line" }}>
+                        {seccion.contenido}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -152,8 +159,9 @@ export default function PoliticaPrivacidad() {
             <div className={styles.footerHighlight}>
               <h3>Tus derechos están protegidos</h3>
               <p>
-                Tienes derecho a acceder, rectificar, suprimir, limitar el tratamiento,
-                oponerte al tratamiento y a la portabilidad de tus datos personales.
+                Tienes derecho a acceder, rectificar, suprimir, limitar el
+                tratamiento, oponerte al tratamiento y a la portabilidad de tus
+                datos personales.
               </p>
             </div>
             <button

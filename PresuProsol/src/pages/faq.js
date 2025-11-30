@@ -4,7 +4,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "./api/supabaseClient";
+import { fetchFaqsActivas } from "./api/faqs";
 import styles from "../styles/FAQ.module.css";
 
 export default function FAQ() {
@@ -37,22 +37,11 @@ export default function FAQ() {
         console.log("📚 [CARGANDO FAQs]");
         setCargando(true);
 
-        const { data, error } = await supabase
-          .from("faqs")
-          .select("*")
-          .eq("activo", true)
-          .order("orden", { ascending: true });
+        const data = await fetchFaqsActivas();
 
         if (cancelled) return;
 
-        if (error) {
-          console.error("❌ Error cargando FAQs:", error);
-          setFaqs([]);
-          return;
-        }
-
-        console.log("✅ FAQs cargadas:", data?.length);
-        setFaqs(data || []);
+        setFaqs(data);
       } catch (e) {
         if (!cancelled) {
           console.error("💥 Exception cargando FAQs:", e);
@@ -71,7 +60,7 @@ export default function FAQ() {
     return () => {
       cancelled = true;
     };
-  }, [loading, canAccess]);
+  }, [loading, canAccess, session, profile, canAccess]);
 
   const toggleFAQ = (id) => {
     setOpenId((prev) => (prev === id ? null : id));
@@ -116,7 +105,8 @@ export default function FAQ() {
         <div className={styles.hero}>
           <h1 className={styles.title}>Preguntas Frecuentes</h1>
           <p className={styles.subtitle}>
-            Encuentra respuestas rápidas a las dudas más comunes sobre nuestra plataforma
+            Encuentra respuestas rápidas a las dudas más comunes sobre nuestra
+            plataforma
           </p>
         </div>
 
@@ -146,7 +136,9 @@ export default function FAQ() {
                     onClick={() => toggleFAQ(faq.id)}
                     aria-expanded={openId === faq.id}
                   >
-                    <span className={styles.questionText}>{faq.pregunta}</span>
+                    <span className={styles.questionText}>
+                      {faq.pregunta}
+                    </span>
                     <span className={styles.icon}>
                       {openId === faq.id ? "−" : "+"}
                     </span>

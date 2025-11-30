@@ -2,8 +2,8 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "./api/supabaseClient";
 import Header from "../components/Header";
+import { fetchPedidosUsuario } from "./api/pedidos";
 
 export default function MisPedidos() {
   const router = useRouter();
@@ -21,22 +21,19 @@ export default function MisPedidos() {
     if (session?.user?.id) {
       loadPedidos();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   async function loadPedidos() {
     setLoadingData(true);
-    const { data, error } = await supabase
-      .from("pedidos")
-      .select("*, presupuestos(*)")
-      .eq("user_id", session.user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchPedidosUsuario(session.user.id);
+      setPedidos(data);
+    } catch (error) {
       console.error("Error cargando pedidos:", error);
-    } else {
-      setPedidos(data || []);
+    } finally {
+      setLoadingData(false);
     }
-    setLoadingData(false);
   }
 
   if (loading || loadingData) {
@@ -60,7 +57,10 @@ export default function MisPedidos() {
       <main className="container py-4" style={{ maxWidth: 1200 }}>
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h1>📦 Mis Pedidos</h1>
-          <button onClick={() => router.push("/perfil")} className="btn btn-outline-secondary">
+          <button
+            onClick={() => router.push("/perfil")}
+            className="btn btn-outline-secondary"
+          >
             ← Volver
           </button>
         </div>
@@ -86,11 +86,17 @@ export default function MisPedidos() {
                     <td>{new Date(p.created_at).toLocaleDateString()}</td>
                     <td>{p.presupuestos?.tipo || "N/A"}</td>
                     <td>
-                      <span className={`badge bg-${p.estado === "En proceso" ? "warning" : "success"}`}>
+                      <span
+                        className={`badge bg-${
+                          p.estado === "En proceso" ? "warning" : "success"
+                        }`}
+                      >
                         {p.estado}
                       </span>
                     </td>
-                    <td className="fw-bold">{p.total?.toFixed(2)} €</td>
+                    <td className="fw-bold">
+                      {p.total?.toFixed(2)} €
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -98,7 +104,6 @@ export default function MisPedidos() {
           </div>
         )}
       </main>
-
     </>
   );
 }

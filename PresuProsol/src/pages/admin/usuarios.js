@@ -3,8 +3,16 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../api/supabaseClient";
 import Header from "../../components/Header";
+
+// 👉 Helpers Supabase para admin usuarios
+import {
+  fetchAdminUsuarios,
+  habilitarUsuarioDb,
+  deshabilitarUsuarioDb,
+  cambiarRolDb,
+  cambiarDescuentoDb,
+} from "../api/admin-usuarios-api";
 
 // 👉 Helper de notificaciones por email
 import { enviarAvisoEstadoUsuario } from "../api/emailNotifications";
@@ -39,12 +47,7 @@ export default function UsuariosAdmin() {
     setLoadingData(true);
     setMsg("");
 
-    const { data, error } = await supabase
-      .from("administracion_usuarios")
-      .select(
-        "id, usuario, email, cif, rol, habilitado, created_at, descuento"
-      )
-      .order("created_at", { ascending: false });
+    const { data, error } = await fetchAdminUsuarios();
 
     if (error) {
       console.error("Error cargando usuarios:", error);
@@ -62,38 +65,12 @@ export default function UsuariosAdmin() {
     setMsg("");
 
     try {
-      // Cambia bandera habilitado en administracion_usuarios
-      const { error: upErr } = await supabase
-        .from("administracion_usuarios")
-        .update({ habilitado: true })
-        .eq("id", u.id);
-      if (upErr) throw upErr;
-
-      const now = new Date().toISOString();
-
-      // Alta operativa en tabla usuarios
-      const { error: insErr } = await supabase
-        .from("usuarios")
-        .upsert(
-          [
-            {
-              id: u.id,
-              usuario: u.usuario,
-              email: u.email,
-              cif: u.cif,
-              habilitado: true,
-              rol: u.rol || "usuario",
-              created_at: now,
-              updated_at: now,
-            },
-          ],
-          { onConflict: "id" }
-        );
-      if (insErr) throw insErr;
+      const { error } = await habilitarUsuarioDb(u);
+      if (error) throw error;
 
       // 📧 Notificación por email (no bloquea la UI)
       enviarAvisoEstadoUsuario({
-        email: u.email,        // 👉 gmail del usuario
+        email: u.email,
         usuario: u.usuario,
         estado: "habilitado",
       });
@@ -110,22 +87,12 @@ export default function UsuariosAdmin() {
   async function deshabilitarUsuario(u) {
     setMsg("");
     try {
-      const { error: upErr } = await supabase
-        .from("administracion_usuarios")
-        .update({ habilitado: false })
-        .eq("id", u.id);
-      if (upErr) throw upErr;
-
-      // Borrar fila operativa en usuarios
-      const { error: delErr } = await supabase
-        .from("usuarios")
-        .delete()
-        .eq("id", u.id);
-      if (delErr) throw delErr;
+      const { error } = await deshabilitarUsuarioDb(u);
+      if (error) throw error;
 
       // 📧 Notificación por email
       enviarAvisoEstadoUsuario({
-        email: u.email,        // 👉 gmail del usuario
+        email: u.email,
         usuario: u.usuario,
         estado: "deshabilitado",
       });
@@ -142,17 +109,8 @@ export default function UsuariosAdmin() {
   async function cambiarRol(u, nuevoRol) {
     setMsg("");
     try {
-      const role = nuevoRol === "admin" ? "admin" : "usuario";
-
-      const { error: upAdminErr } = await supabase
-        .from("administracion_usuarios")
-        .update({ rol: role })
-        .eq("id", u.id);
-      if (upAdminErr) throw upAdminErr;
-
-      if (u.habilitado) {
-        await supabase.from("usuarios").update({ rol: role }).eq("id", u.id);
-      }
+      const { error } = await cambiarRolDb(u, nuevoRol);
+      if (error) throw error;
 
       setMsg("🔄 Rol actualizado correctamente.");
       fetchUsuarios();
@@ -182,10 +140,7 @@ export default function UsuariosAdmin() {
       )
     );
 
-    const { error } = await supabase
-      .from("administracion_usuarios")
-      .update({ descuento: Number(n.toFixed(2)) })
-      .eq("id", u.id);
+    const { error } = await cambiarDescuentoDb(u.id, n);
 
     if (error) {
       console.error("Error descuento:", error);

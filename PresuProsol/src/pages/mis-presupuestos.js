@@ -3,11 +3,14 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "./api/supabaseClient";
 import Header from "../components/Header";
 import ModalPago from "../components/ModalPago";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import {
+  fetchPresupuestosUsuario,
+  eliminarPresupuesto,
+} from "./api/presupuestos";
 
 export default function MisPresupuestos() {
   const router = useRouter();
@@ -29,22 +32,19 @@ export default function MisPresupuestos() {
     if (session?.user?.id) {
       loadPresupuestos();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   async function loadPresupuestos() {
     setLoadingData(true);
-    const { data, error } = await supabase
-      .from("presupuestos")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const data = await fetchPresupuestosUsuario(session.user.id);
+      setPresupuestos(data);
+    } catch (error) {
       console.error("Error cargando presupuestos:", error);
-    } else {
-      setPresupuestos(data || []);
+    } finally {
+      setLoadingData(false);
     }
-    setLoadingData(false);
   }
 
   function abrirModalEliminar(presupuesto) {
@@ -60,16 +60,12 @@ export default function MisPresupuestos() {
   async function confirmarEliminar() {
     if (!presupuestoAEliminar) return;
 
-    const { error } = await supabase
-      .from("presupuestos")
-      .delete()
-      .eq("id", presupuestoAEliminar.id);
-
-    if (error) {
-      alert("Error eliminando: " + error.message);
-    } else {
+    try {
+      await eliminarPresupuesto(presupuestoAEliminar.id);
       cerrarModalEliminar();
-      loadPresupuestos();
+      await loadPresupuestos();
+    } catch (error) {
+      alert("Error eliminando: " + error.message);
     }
   }
 
@@ -186,14 +182,26 @@ export default function MisPresupuestos() {
                 </tr>
               </thead>
               <tbody>
-                ${presupuesto.accesorios.map((acc) => `
+                ${presupuesto.accesorios
+                  .map(
+                    (acc) => `
                 <tr>
-                  <td style="padding: 8px; border-bottom: 1px solid #ecf0f1;">${acc.nombre || "Accesorio"}</td>
-                  <td style="padding: 8px; text-align: center; border-bottom: 1px solid #ecf0f1;">${acc.unidades || 0}</td>
-                  <td style="padding: 8px; text-align: right; border-bottom: 1px solid #ecf0f1;">${(acc.precio_unit || 0).toFixed(2)} €</td>
-                  <td style="padding: 8px; text-align: right; border-bottom: 1px solid #ecf0f1; font-weight: bold;">${((acc.unidades || 0) * (acc.precio_unit || 0)).toFixed(2)} €</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #ecf0f1;">${
+                    acc.nombre || "Accesorio"
+                  }</td>
+                  <td style="padding: 8px; text-align: center; border-bottom: 1px solid #ecf0f1;">${
+                    acc.unidades || 0
+                  }</td>
+                  <td style="padding: 8px; text-align: right; border-bottom: 1px solid #ecf0f1;">${(
+                    acc.precio_unit || 0
+                  ).toFixed(2)} €</td>
+                  <td style="padding: 8px; text-align: right; border-bottom: 1px solid #ecf0f1; font-weight: bold;">${(
+                    (acc.unidades || 0) * (acc.precio_unit || 0)
+                  ).toFixed(2)} €</td>
                 </tr>
-                `).join('')}
+                `
+                  )
+                  .join("")}
               </tbody>
             </table>
           </div>
@@ -206,12 +214,19 @@ export default function MisPresupuestos() {
                 <td style="padding: 8px 0;">Subtotal:</td>
                 <td style="padding: 8px 0; text-align: right; font-weight: bold;">${(presupuesto.subtotal || 0).toFixed(2)} €</td>
               </tr>
-              ${presupuesto.descuento_cliente > 0 ? `
+              ${
+                presupuesto.descuento_cliente > 0
+                  ? `
               <tr>
                 <td style="padding: 8px 0;">Descuento (${presupuesto.descuento_cliente}%):</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #ffeaa7;">-${((presupuesto.subtotal || 0) * (presupuesto.descuento_cliente / 100)).toFixed(2)} €</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #ffeaa7;">-${(
+                  (presupuesto.subtotal || 0) *
+                  (presupuesto.descuento_cliente / 100)
+                ).toFixed(2)} €</td>
               </tr>
-              ` : ''}
+              `
+                  : ""
+              }
               <tr style="border-top: 2px solid rgba(255,255,255,0.3);">
                 <td style="padding: 12px 0; font-size: 20px; font-weight: bold;">TOTAL:</td>
                 <td style="padding: 12px 0; text-align: right; font-size: 24px; font-weight: bold;">${(presupuesto.total || 0).toFixed(2)} €</td>
@@ -530,7 +545,6 @@ export default function MisPresupuestos() {
           onSuccess={onPagoExitoso}
         />
       )}
-
     </>
   );
 }

@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../api/supabaseClient";
 
 import {
   getPanoPricePerM2,
@@ -13,20 +12,26 @@ import {
   applyDiscount,
 } from "../api/pricingPanos";
 
+import {
+  fetchCatalogoPanos,
+  fetchDescuentoClientePanos,
+  insertarPresupuestoPanos,
+} from "../api/panos";
+
 // MAPEO DE IMÁGENES DE ACCESORIOS
 const ACCESORIO_IMAGENES = {
-  "cajillaRecogedor.png": "cajillaRecogedor.png",
-  "capsulaMetalica.png": "capsulaMetalica.png",
-  "cinta.png": "cinta.png",
-  "DiscoMetalico.png": "DiscoMetalico.png",
-  "pasacintas.png": "pasacintas.png",
-  "placarecogedor.png": "placarecogedor.png",
-  "recogerdorAbatible.png": "recogerdorAbatible.png",
-  "recogerdorPlastico.png": "recogerdorPlastico.png",
-  "recogerdorMetalico.png": "recogerdorMetalico.png",
-  "rodamiento.png": "rodamiento.png",
-  "soporte.png": "soporte.png",
-  "tubo.png": "tubo.png",
+  cajillaRecogedor: "/assets/panos/accesorios/cajillaRecogedor.png",
+  capsulaMetalica: "/assets/panos/accesorios/capsulaMetalica.png",
+  cinta: "/assets/panos/accesorios/cinta.png",
+  DiscoMetalico: "/assets/panos/accesorios/DiscoMetalico.png",
+  pasacintas: "/assets/panos/accesorios/pasacintas.png",
+  placarecogedor: "/assets/panos/accesorios/placarecogedor.png",
+  recogerdorAbatible: "/assets/panos/accesorios/recogerdorAbatible.png",
+  recogerdorPlastico: "/assets/panos/accesorios/recogerdorPlastico.png",
+  recogerdorMetalico: "/assets/panos/accesorios/recogerdorMetalico.png",
+  rodamiento: "/assets/panos/accesorios/rodamiento.png",
+  soporte: "/assets/panos/accesorios/soporte.png",
+  tubo: "/assets/panos/accesorios/tubo.png",
 };
 
 // Función para obtener la imagen del accesorio
@@ -36,40 +41,40 @@ const getAccesorioImagen = (nombreAccesorio) => {
   const nombre = nombreAccesorio.toLowerCase();
 
   if (nombre.includes("cajilla") || nombre.includes("recogedor cajilla")) {
-    return "/assets/panos/accesorios/cajillaRecogedor.png";
+    return ACCESORIO_IMAGENES.cajillaRecogedor;
   }
   if (nombre.includes("cápsula") || nombre.includes("capsula") || nombre.includes("metalica")) {
-    return "/assets/panos/accesorios/capsulaMetalica.png";
+    return ACCESORIO_IMAGENES.capsulaMetalica;
   }
   if (nombre.includes("cinta") && !nombre.includes("pasacinta")) {
-    return "/assets/panos/accesorios/cinta.png";
+    return ACCESORIO_IMAGENES.cinta;
   }
   if (nombre.includes("disco") || nombre.includes("metálico disco")) {
-    return "/assets/panos/accesorios/DiscoMetalico.png";
+    return ACCESORIO_IMAGENES.DiscoMetalico;
   }
   if (nombre.includes("pasacinta") || nombre.includes("pasa cinta")) {
-    return "/assets/panos/accesorios/pasacintas.png";
+    return ACCESORIO_IMAGENES.pasacintas;
   }
   if (nombre.includes("placa") && nombre.includes("recogedor")) {
-    return "/assets/panos/accesorios/placarecogedor.png";
+    return ACCESORIO_IMAGENES.placarecogedor;
   }
   if (nombre.includes("recogedor abatible")) {
-    return "/assets/panos/accesorios/recogerdorAbatible.png";
+    return ACCESORIO_IMAGENES.recogerdorAbatible;
   }
   if (nombre.includes("recogedor") && nombre.includes("plástico")) {
-    return "/assets/panos/accesorios/recogerdorPlastico.png";
+    return ACCESORIO_IMAGENES.recogerdorPlastico;
   }
   if (nombre.includes("recogedor") && nombre.includes("metálico")) {
-    return "/assets/panos/accesorios/recogerdorMetalico.png";
+    return ACCESORIO_IMAGENES.recogerdorMetalico;
   }
   if (nombre.includes("rodamiento")) {
-    return "/assets/panos/accesorios/rodamiento.png";
+    return ACCESORIO_IMAGENES.rodamiento;
   }
   if (nombre.includes("soporte")) {
-    return "/assets/panos/accesorios/soporte.png";
+    return ACCESORIO_IMAGENES.soporte;
   }
   if (nombre.includes("tubo")) {
-    return "/assets/panos/accesorios/tubo.png";
+    return ACCESORIO_IMAGENES.tubo;
   }
 
   return null;
@@ -119,52 +124,17 @@ export default function ConfigPanos({
   /* ================== CARGA CATÁLOGO ================== */
   useEffect(() => {
     const load = async () => {
-      console.log("📦 [CARGANDO CATÁLOGO PAÑOS]");
-
-      // MODELOS
-      const { data: m, error: mErr } = await supabase
-        .from("panos_modelos")
-        .select("id,tipo,nombre,activo")
-        .eq("activo", true)
-        .order("tipo")
-        .order("nombre");
-
-      if (mErr) {
-        console.error("[panos_modelos] error:", mErr);
+      console.log("📦 [CARGANDO CATÁLOGO PAÑOS DESDE API]");
+      try {
+        const { modelos, acabados, accesorios } = await fetchCatalogoPanos();
+        setModelos(modelos);
+        setAcabados(acabados);
+        setAccesorios(accesorios);
+      } catch (e) {
+        console.error("[panos catálogo] exception:", e);
         setModelos([]);
-      } else {
-        console.log("✅ Modelos cargados:", m?.length);
-        setModelos(m || []);
-      }
-
-      // ACABADOS
-      const { data: a, error: aErr } = await supabase
-        .from("panos_acabados")
-        .select("id,clave,nombre,activo,orden")
-        .eq("activo", true)
-        .order("orden");
-
-      if (aErr) {
-        console.error("[panos_acabados] error:", aErr);
         setAcabados([]);
-      } else {
-        console.log("✅ Acabados cargados:", a?.length);
-        setAcabados(a || []);
-      }
-
-      // ACCESORIOS
-      const { data: acc, error: accErr } = await supabase
-        .from("panos_accesorios")
-        .select("id,nombre,unidad,pvp,activo")
-        .eq("activo", true)
-        .order("nombre");
-
-      if (accErr) {
-        console.error("[panos_accesorios] error:", accErr);
         setAccesorios([]);
-      } else {
-        console.log("✅ Accesorios cargados:", acc?.length);
-        setAccesorios(acc || []);
       }
     };
 
@@ -177,33 +147,8 @@ export default function ConfigPanos({
   useEffect(() => {
     const loadDesc = async () => {
       if (!session?.user?.id) return;
-
-      const uid = session.user.id;
-
-      try {
-        console.log("[panos descuento] buscando para auth_user_id:", uid);
-
-        const { data, error, status } = await supabase
-          .from("administracion_usuarios")
-          .select("id, auth_user_id, descuento, descuento_cliente")
-          .or(`auth_user_id.eq.${uid},id.eq.${uid}`)
-          .maybeSingle();
-
-        console.log("[panos descuento] status:", status, "data:", data, "error:", error);
-
-        if (error) {
-          console.warn("[panos descuento] error:", error);
-          setDescuento(0);
-          return;
-        }
-
-        const pct = Number(data?.descuento ?? data?.descuento_cliente ?? 0);
-        console.log("[panos descuento] aplicado =", pct, "%");
-        setDescuento(Number.isFinite(pct) ? pct : 0);
-      } catch (e) {
-        console.error("[panos descuento] exception:", e);
-        setDescuento(0);
-      }
+      const pct = await fetchDescuentoClientePanos(session.user.id);
+      setDescuento(pct);
     };
 
     loadDesc();
@@ -216,17 +161,13 @@ export default function ConfigPanos({
     console.log("📝 [MODO EDICIÓN PAÑOS] Cargando datos iniciales:", datosIniciales);
 
     if (datosIniciales.alto_mm) {
-      console.log("   → Alto:", datosIniciales.alto_mm);
       setAlto(datosIniciales.alto_mm.toString());
     }
     if (datosIniciales.ancho_mm) {
-      console.log("   → Ancho:", datosIniciales.ancho_mm);
       setAncho(datosIniciales.ancho_mm.toString());
     }
 
     if (datosIniciales.accesorios && Array.isArray(datosIniciales.accesorios)) {
-      console.log("   → Accesorios:", datosIniciales.accesorios.length);
-      // Convertir pvp a precio_unit para compatibilidad
       const accesoriosNormalizados = datosIniciales.accesorios.map((a) => ({
         id: a.id,
         nombre: a.nombre,
@@ -237,12 +178,10 @@ export default function ConfigPanos({
     }
 
     if (datosIniciales.medida_precio) {
-      console.log("   → Precio base:", datosIniciales.medida_precio);
       setBase(Number(datosIniciales.medida_precio));
     }
 
     if (datosIniciales.descuento_cliente && descuento === 0) {
-      console.log("   → Descuento inicial:", datosIniciales.descuento_cliente);
       setDescuento(Number(datosIniciales.descuento_cliente));
     }
   }, [datosIniciales, modoEdicion, descuento]);
@@ -252,26 +191,17 @@ export default function ConfigPanos({
     if (!datosIniciales || !modoEdicion) return;
     if (modelos.length === 0 || acabados.length === 0) return;
 
-    // Color contiene el nombre del acabado
     if (datosIniciales.color && !acabadoId) {
       const acabadoEncontrado = acabados.find(
         (a) => a.nombre.toLowerCase() === datosIniciales.color.toLowerCase()
       );
 
       if (acabadoEncontrado) {
-        console.log("✅ Acabado encontrado:", acabadoEncontrado);
         setAcabadoId(String(acabadoEncontrado.id));
-      } else {
-        console.warn("⚠️ No se encontró acabado:", datosIniciales.color);
       }
     }
 
-    // Intentar detectar modelo desde tipo si no hay otra info
-    // El tipo suele ser "paño-completo" o "paño-lamas"
     if (!modeloId && modelos.length > 0) {
-      // Por defecto seleccionar el primer modelo disponible
-      // O puedes implementar lógica más específica si guardas el modelo en algún campo
-      console.log("ℹ️ No hay modelo guardado, usando primer modelo disponible");
       setModeloId(String(modelos[0].id));
     }
   }, [datosIniciales, modoEdicion, modelos, acabados, modeloId, acabadoId]);
@@ -381,24 +311,17 @@ export default function ConfigPanos({
     setMsg("");
 
     try {
-      console.log("===== GUARDAR PRESUPUESTO PAÑOS =====");
-      console.log("[session]", session?.user?.id);
-      console.log("[profile]", profile);
-
       if (!session?.user?.id) {
-        console.warn("[guardar] no hay sesión");
         router.push("/login?m=login-required");
         return;
       }
 
       if (!modeloId || !acabadoId || !alto || !ancho) {
-        console.warn("[guardar] faltan datos", { modeloId, acabadoId, alto, ancho });
         setMsg("⚠️ Completa modelo, acabado y medidas.");
         return;
       }
 
       if (precioM2 === null) {
-        console.warn("[guardar] precio no disponible");
         setMsg("⚠️ No hay precio disponible para esta combinación. Contacta con administración.");
         return;
       }
@@ -432,17 +355,12 @@ export default function ConfigPanos({
       console.log("[payload json] >>>");
       console.log(JSON.stringify(payload, null, 2));
 
-      const { data, error, status } = await supabase
-        .from("presupuestos")
-        .insert([payload])
-        .select("id")
-        .maybeSingle();
+      const { data, error, status } = await insertarPresupuestoPanos(payload);
 
       console.log("[insert presupuestos] status:", status);
       console.log("[insert presupuestos] data:", data);
 
       if (error) {
-        console.error("[insert presupuestos] error:", error);
         setMsg(`❌ No se pudo guardar el presupuesto: ${error.message || "error desconocido"}`);
         return;
       }
@@ -466,7 +384,7 @@ export default function ConfigPanos({
 
       {!modoEdicion && <Header />}
 
-      <main className={`container ${!modoEdicion ? 'py-4' : ''}`} style={{ maxWidth: 980 }}>
+      <main className={`container ${!modoEdicion ? "py-4" : ""}`} style={{ maxWidth: 980 }}>
         {!modoEdicion && (
           <div className="d-flex align-items-center justify-content-between mb-3">
             <h1 className="h4 m-0">
@@ -493,23 +411,19 @@ export default function ConfigPanos({
                   onChange={(e) => setModeloId(e.target.value)}
                 >
                   <option value="">Selecciona modelo…</option>
-                  {["perfilado", "extrusionado", "pvc", "enrollable"].map(
-                    (t) => {
-                      const group = modelos.filter(
-                        (m) => m.tipo === t
-                      );
-                      if (!group.length) return null;
-                      return (
-                        <optgroup key={t} label={t.toUpperCase()}>
-                          {group.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.nombre}
-                            </option>
-                          ))}
-                        </optgroup>
-                      );
-                    }
-                  )}
+                  {["perfilado", "extrusionado", "pvc", "enrollable"].map((t) => {
+                    const group = modelos.filter((m) => m.tipo === t);
+                    if (!group.length) return null;
+                    return (
+                      <optgroup key={t} label={t.toUpperCase()}>
+                        {group.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.nombre}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -576,7 +490,7 @@ export default function ConfigPanos({
 
                     return (
                       <div className="col-12 col-md-6 col-lg-4" key={a.id}>
-                        <div 
+                        <div
                           className="card h-100 shadow-sm"
                           style={{
                             transition: "transform 0.2s, box-shadow 0.2s",
@@ -590,7 +504,6 @@ export default function ConfigPanos({
                             e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
                           }}
                         >
-                          {/* Imagen */}
                           {imgSrc && (
                             <div
                               style={{
@@ -615,7 +528,6 @@ export default function ConfigPanos({
                             </div>
                           )}
 
-                          {/* Sin imagen - solo icono */}
                           {!imgSrc && (
                             <div
                               style={{
@@ -633,7 +545,6 @@ export default function ConfigPanos({
                             </div>
                           )}
 
-                          {/* Info y control */}
                           <div className="card-body">
                             <h6 className="card-title mb-2" style={{ fontSize: 14, fontWeight: 600 }}>
                               {a.nombre}
@@ -694,7 +605,9 @@ export default function ConfigPanos({
                     <>
                       <div className="d-flex justify-content-between">
                         <span className="text-muted">Subtotal:</span>
-                        <strong className="text-muted">{(base + accTotal).toFixed(2)} €</strong>
+                        <strong className="text-muted">
+                          {(base + accTotal).toFixed(2)} €
+                        </strong>
                       </div>
                       <div className="d-flex justify-content-between">
                         <span className="text-muted">Descuento ({descuento}%):</span>
@@ -725,9 +638,7 @@ export default function ConfigPanos({
               {msg && (
                 <div
                   className={`col-12 alert ${
-                    msg.startsWith("✅")
-                      ? "alert-success"
-                      : "alert-warning"
+                    msg.startsWith("✅") ? "alert-success" : "alert-warning"
                   } mb-0`}
                 >
                   {msg}
@@ -763,7 +674,6 @@ export default function ConfigPanos({
           </div>
         </div>
       </main>
-
     </>
   );
 }

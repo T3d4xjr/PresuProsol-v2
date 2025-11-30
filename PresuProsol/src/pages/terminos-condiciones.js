@@ -3,7 +3,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "./api/supabaseClient";
+import { fetchTerminosActivos } from "./api/terminos";
 import styles from "../styles/Terminos.module.css";
 
 export default function TerminosCondiciones() {
@@ -13,10 +13,8 @@ export default function TerminosCondiciones() {
   const [openId, setOpenId] = useState(null);
   const [cargando, setCargando] = useState(true);
 
-  // Usuario realmente permitido (logueado y habilitado)
   const canAccess = !!session && !!profile && profile.habilitado !== false;
 
-  /* 🔒 Protección */
   useEffect(() => {
     if (loading) return;
 
@@ -25,27 +23,13 @@ export default function TerminosCondiciones() {
     }
   }, [loading, canAccess, router]);
 
-  /* 📄 Cargar Términos */
   useEffect(() => {
     const loadTerminos = async () => {
       try {
-        console.log("📄 [CARGANDO TÉRMINOS]");
         setCargando(true);
-        
-        const { data, error } = await supabase
-          .from("terminos_condiciones")
-          .select("*")
-          .eq("activo", true)
-          .order("orden", { ascending: true });
-
-        if (error) {
-          console.error("❌ Error cargando términos:", error);
-          setSecciones([]);
-          return;
-        }
-
+        const data = await fetchTerminosActivos();
         console.log("✅ Términos cargados:", data?.length);
-        setSecciones(data || []);
+        setSecciones(data);
       } catch (e) {
         console.error("💥 Exception cargando términos:", e);
         setSecciones([]);
@@ -88,7 +72,10 @@ export default function TerminosCondiciones() {
     <>
       <Head>
         <title>Términos y Condiciones · PresuProsol</title>
-        <meta name="description" content="Términos y condiciones de uso de PresuProsol" />
+        <meta
+          name="description"
+          content="Términos y condiciones de uso de PresuProsol"
+        />
       </Head>
 
       <Header />
@@ -97,7 +84,12 @@ export default function TerminosCondiciones() {
         <div className={styles.hero}>
           <h1 className={styles.title}>Términos y Condiciones</h1>
           <p className={styles.subtitle}>
-            Última actualización: {new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+            Última actualización:{" "}
+            {new Date().toLocaleDateString("es-ES", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
           </p>
         </div>
 
@@ -117,7 +109,9 @@ export default function TerminosCondiciones() {
               {secciones.map((seccion, index) => (
                 <div
                   key={seccion.id}
-                  className={`${styles.seccionItem} ${openId === seccion.id ? styles.seccionItemOpen : ""}`}
+                  className={`${styles.seccionItem} ${
+                    openId === seccion.id ? styles.seccionItemOpen : ""
+                  }`}
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <button
@@ -132,9 +126,17 @@ export default function TerminosCondiciones() {
                     </span>
                   </button>
 
-                  <div className={`${styles.seccionContenido} ${openId === seccion.id ? styles.seccionContenidoOpen : ""}`}>
+                  <div
+                    className={`${styles.seccionContenido} ${
+                      openId === seccion.id
+                        ? styles.seccionContenidoOpen
+                        : ""
+                    }`}
+                  >
                     <div className={styles.contenidoText}>
-                      <p style={{ whiteSpace: 'pre-line' }}>{seccion.contenido}</p>
+                      <p style={{ whiteSpace: "pre-line" }}>
+                        {seccion.contenido}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -146,8 +148,9 @@ export default function TerminosCondiciones() {
         {!cargando && secciones.length > 0 && (
           <div className={styles.footer}>
             <p className={styles.footerText}>
-              Al utilizar PresuProsol, aceptas estos términos y condiciones en su totalidad.
-              Si tienes alguna duda, por favor contacta con nuestro equipo.
+              Al utilizar PresuProsol, aceptas estos términos y condiciones en
+              su totalidad. Si tienes alguna duda, por favor contacta con
+              nuestro equipo.
             </p>
             <button
               className={styles.contactBtn}

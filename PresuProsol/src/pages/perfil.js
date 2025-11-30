@@ -2,9 +2,9 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "./api/supabaseClient";
 import Header from "../components/Header";
 import AvatarUploader from "../components/AvatarUploader";
+import { actualizarPerfil } from "./api/perfil";
 
 export default function Perfil() {
   const router = useRouter();
@@ -81,7 +81,7 @@ export default function Perfil() {
     setSaving(true);
 
     const f = new FormData(e.currentTarget);
-    const payload = {
+    const campos = {
       usuario: f.get("usuario")?.toString().trim(),
       email: f.get("email")?.toString().trim(),
       cif: f.get("cif")?.toString().trim(),
@@ -89,21 +89,16 @@ export default function Perfil() {
       direccion: f.get("direccion")?.toString().trim() || null,
       nacionalidad: f.get("nacionalidad")?.toString().trim() || null,
       foto_url: avatarUrl || null,
-      updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from("usuarios")
-      .update(payload)
-      .eq("id", session.user.id);
-
-    setSaving(false);
-
-    if (error) {
-      setMsg(`❌ No se pudo actualizar: ${error.message}`);
-    } else {
+    try {
+      await actualizarPerfil(session.user.id, campos);
       setMsg("✅ Perfil actualizado.");
       refreshProfile?.(); // 🔄 Refresca el perfil del hook
+    } catch (error) {
+      setMsg(`❌ No se pudo actualizar: ${error.message}`);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -245,7 +240,6 @@ export default function Perfil() {
           </div>
         </div>
       </main>
-
     </>
   );
 }
