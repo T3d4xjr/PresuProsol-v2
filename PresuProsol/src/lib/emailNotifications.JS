@@ -66,8 +66,8 @@ export async function enviarAvisoPedidoEnviado({ email, nombre }) {
       serviceId,
       templateId,
       {
-        to_email: email,          // Gmail del cliente
-        to_name: nombre || email, // Nombre del cliente
+        to_email: email,          
+        to_name: nombre || email, 
       },
       publicKey
     );
