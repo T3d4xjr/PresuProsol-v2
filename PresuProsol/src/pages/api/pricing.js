@@ -1,5 +1,5 @@
 // src/lib/pricing.js
-import { supabase } from './supabaseClient';
+import { supabase } from "./supabaseClient";
 
 /**
  * Obtiene el precio base de mosquitera para una medida EXACTA (alto_mm x ancho_mm)
