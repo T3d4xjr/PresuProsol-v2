@@ -1,7 +1,7 @@
 // src/components/AvatarUploader.js
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../pages/api/supabaseClient';
 
 const BUCKET = 'fotosPerfiles';
 const BASE_URL =

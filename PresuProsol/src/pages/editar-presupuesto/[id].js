@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../api/supabaseClient";
 import Header from "../../components/Header";
 
 // Importar componentes de productos

@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../api/supabaseClient";
 
 const PRESUPUESTO_MINIMO = 2500;
 

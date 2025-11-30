@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Header from "@/components/Header";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/pages/api/supabaseClient";
 import styles from "@/styles/Login.module.css";
 
 export default function Registro() {

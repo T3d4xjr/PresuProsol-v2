@@ -3,11 +3,11 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "../../context/AuthContext";
-import { supabase } from "../../lib/supabaseClient";
+import { supabase } from "../api/supabaseClient";
 import Header from "../../components/Header";
 
 // 👉 Helper de notificaciones por email
-import { enviarAvisoEstadoUsuario } from "../../lib/emailNotifications";
+import { enviarAvisoEstadoUsuario } from "../api/emailNotifications";
 
 export default function UsuariosAdmin() {
   const router = useRouter();
