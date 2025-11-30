@@ -3,7 +3,6 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 
 export default function Compactos() {
@@ -185,7 +184,6 @@ export default function Compactos() {
           </section>
         </main>
 
-        <Footer />
       </div>
     </>
   );

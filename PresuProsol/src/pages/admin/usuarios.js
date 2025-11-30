@@ -5,7 +5,6 @@ import { useRouter } from "next/router";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 
 // 👉 Helper de notificaciones por email
 import { enviarAvisoEstadoUsuario } from "../../lib/emailNotifications";
@@ -341,7 +340,6 @@ export default function UsuariosAdmin() {
             </div>
           )}
         </main>
-        <Footer />
       </div>
     </>
   );

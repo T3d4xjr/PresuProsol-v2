@@ -23,7 +23,7 @@
 .page {
   max-width: 1140px;
   margin: 24px auto;
-  padding: 0 16px;
+  padding: 0 16px 4rem 16px; /* 👈 Espacio al final */
   color: var(--text);
   box-sizing: border-box;
 }
@@ -85,6 +85,10 @@
 @media (max-width: 640px) {
   .cards {
     grid-template-columns: 1fr;
+  }
+  
+  .page {
+    padding: 0 16px 3rem 16px; /* 👈 Menos espacio en móvil */
   }
 }
 

@@ -3,7 +3,6 @@ import Head from "next/head";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 
 function TypeCard({ title, imgSrc, onClick, objectFit = "cover" }) {
@@ -86,7 +85,6 @@ export default function PuertasSeccionalesIndex() {
         </div>
       </main>
 
-      <Footer />
     </div>
   );
 }

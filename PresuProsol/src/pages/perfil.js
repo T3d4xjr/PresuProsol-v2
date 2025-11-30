@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import useAuth from "../hooks/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 import AvatarUploader from "../components/AvatarUploader";
 
 export default function Perfil() {
@@ -52,7 +51,6 @@ export default function Perfil() {
             espera un momento y recarga.
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -72,7 +70,6 @@ export default function Perfil() {
             administrador.
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -249,7 +246,6 @@ export default function Perfil() {
         </div>
       </main>
 
-      <Footer />
     </>
   );
 }

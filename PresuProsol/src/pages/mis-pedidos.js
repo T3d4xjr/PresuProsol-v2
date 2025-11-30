@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import useAuth from "../hooks/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 
 export default function MisPedidos() {
   const router = useRouter();
@@ -47,7 +46,6 @@ export default function MisPedidos() {
         <main className="container py-4">
           <p>Cargando...</p>
         </main>
-        <Footer />
       </>
     );
   }
@@ -101,7 +99,6 @@ export default function MisPedidos() {
         )}
       </main>
 
-      <Footer />
     </>
   );
 }

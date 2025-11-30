@@ -3,7 +3,6 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -850,9 +849,6 @@ export default function ConfigCompacto({
           </div>
         </div>
       </main>
-
-      {/* Solo mostrar Footer si NO está en modo edición */}
-      {!modoEdicion && <Footer />}
     </>
   );
 }

@@ -1,0 +1,265 @@
+.container {
+  min-height: calc(100vh - 70px);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem 1rem;
+}
+
+.hero {
+  max-width: 900px;
+  margin: 0 auto 3rem;
+  text-align: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.terminosContainer {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem 1rem;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 107, 0, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--text-muted);
+}
+
+.emptyIcon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.seccionesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.seccionItem {
+  background: var(--surface);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.4s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.seccionItem:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.seccionItemOpen {
+  box-shadow: 0 4px 16px rgba(255, 107, 0, 0.15);
+}
+
+.seccionTitulo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s ease;
+}
+
+.seccionTitulo:hover {
+  background: rgba(255, 107, 0, 0.04);
+}
+
+.numero {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #ff8533);
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.tituloText {
+  flex: 1;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.5;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 300;
+  transition: transform 0.3s ease;
+}
+
+.seccionItemOpen .icon {
+  transform: rotate(180deg);
+}
+
+.seccionContenido {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.seccionContenidoOpen {
+  max-height: 1000px;
+}
+
+.contenidoText {
+  padding: 0 1.5rem 1.5rem;
+  color: var(--text);
+  line-height: 1.8;
+  font-size: 1rem;
+}
+
+.contenidoText p {
+  margin: 0;
+}
+
+.footer {
+  max-width: 800px;
+  margin: 4rem auto 0;
+  text-align: center;
+  padding: 2.5rem;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.footerText {
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+}
+
+.contactBtn {
+  padding: 0.875rem 2rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.contactBtn:hover {
+  background: var(--accent-hover, #e55d00);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .title {
+    font-size: 2rem;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+  }
+
+  .tituloText {
+    font-size: 1rem;
+  }
+
+  .numero {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+
+  .seccionTitulo {
+    padding: 1.25rem;
+  }
+
+  .contenidoText {
+    padding: 0 1.25rem 1.25rem;
+    font-size: 0.95rem;
+  }
+
+  .footer {
+    padding: 2rem 1.5rem;
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+  }
+
+  .seccionItem {
+    background: var(--surface);
+  }
+
+  .seccionTitulo:hover {
+    background: rgba(255, 107, 0, 0.08);
+  }
+
+  .footer {
+    background: var(--surface);
+  }
+}

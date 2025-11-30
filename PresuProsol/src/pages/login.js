@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Header from '../../src/components/Header';
-import Footer from '../../src/components/Footer';
 import { supabase } from '../../src/lib/supabaseClient';
 import styles from '../styles/Login.module.css';
 
@@ -247,7 +246,6 @@ export default function Login() {
         </div>
       </main>
 
-      <Footer />
     </>
   );
 }

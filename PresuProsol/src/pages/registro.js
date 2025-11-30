@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import Header from '../../src/components/Header';
-import Footer from '../../src/components/Footer';
 import { supabase } from '../../src/lib/supabaseClient';
 import styles from '../../src/styles/Login.module.css';
 
 export default function Registro() {
+  const router = useRouter();
   const [usuario, setUsuario] = useState('');
   const [email, setEmail] = useState('');
   const [cif, setCif] = useState('');
@@ -86,6 +87,11 @@ export default function Registro() {
         setEmail('');
         setCif('');
         setPass('');
+        
+        // Redirigir al inicio después de 2 segundos
+        setTimeout(() => {
+          router.push('/');
+        }, 2000);
         
       } catch (err) {
         console.error('[REGISTRO] ❌ Error inesperado:', err);
@@ -218,8 +224,6 @@ export default function Registro() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </>
   );
 }

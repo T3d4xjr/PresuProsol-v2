@@ -5,7 +5,6 @@ import { useRouter } from "next/router";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 
 // 👉 Email de pedido enviado
 import { enviarAvisoPedidoEnviado } from "../../lib/emailNotifications";
@@ -127,7 +126,6 @@ export default function AdminPedidos() {
             <p className="mt-3 text-muted">Cargando pedidos...</p>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -241,7 +239,6 @@ export default function AdminPedidos() {
         )}
       </main>
 
-      <Footer />
     </>
   );
 }

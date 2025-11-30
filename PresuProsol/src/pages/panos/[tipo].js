@@ -3,7 +3,6 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -765,7 +764,6 @@ export default function ConfigPanos({
         </div>
       </main>
 
-      {!modoEdicion && <Footer />}
     </>
   );
 }

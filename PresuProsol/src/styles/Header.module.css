@@ -23,31 +23,58 @@
   font-weight: 700;
   color: var(--primary);
   text-decoration: none;
+  transition: color 0.3s ease;
+  z-index: 1001;
+}
+
+.logo:hover {
+  color: var(--accent);
 }
 
 /* ===== NAVEGACIÓN ===== */
 .nav {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 2.5rem;
 }
 
-.navList {
+.infoLinks {
   display: flex;
-  gap: 2rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  align-items: center;
+  gap: 1.8rem;
 }
 
 .link {
+  position: relative;
   color: var(--text, #444);
   font-size: 1rem;
+  font-weight: 500;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 0.3s ease;
+  padding: 0.5rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
+
+.link::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
 .link:hover {
-  color: var(--primary);
+  color: var(--accent);
+}
+
+.link:hover::after {
+  width: 100%;
 }
 
 /* ===== ACCIONES (login / registro o user) ===== */
@@ -60,70 +87,82 @@
 /* ===== Botones auth ===== */
 .login {
   border: 1px solid rgba(16, 24, 40, 0.15);
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 10px;
   color: var(--text);
   text-decoration: none;
-  transition: background 0.2s ease;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
+
 .login:hover {
   background: rgba(16, 24, 40, 0.06);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .signup {
   background: var(--accent);
   color: #fff;
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 10px;
+  font-weight: 600;
   text-decoration: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: all 0.3s ease;
 }
+
 .signup:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
+  background: var(--accent-hover, #e55d00);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 0, 0.3);
 }
 
 /* ===== User Chip (cuando está logueado) ===== */
 .userChip {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 6px 10px;
+  gap: 0.65rem;
+  padding: 8px 14px;
   border-radius: 999px;
   background: #f3f4f7;
   color: #222;
   text-decoration: none;
   border: 1px solid rgba(0, 0, 0, 0.06);
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.3s ease;
 }
+
 .userChip:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: #e8eaef;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* ===== AVATAR (si no hay foto_url) ===== */
 .avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--accent), #ff8533);
   color: #fff;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   text-transform: uppercase;
 }
 
 /* ===== AVATAR IMAGEN (si hay foto_url) ===== */
 .avatarImgWrapper {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 2px solid rgba(0, 0, 0, 0.08);
   background: #ccc;
 }
+
 .avatarImg {
   width: 100%;
   height: 100%;
@@ -144,13 +183,17 @@
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: transparent;
   color: #444;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: 8px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.3s ease;
 }
+
 .logoutBtn:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: #fee;
+  border-color: #dc3545;
+  color: #dc3545;
 }
 
 /* ===== HAMBURGUESA ===== */
@@ -158,27 +201,52 @@
   display: none;
   flex-direction: column;
   justify-content: space-between;
-  width: 24px;
-  height: 18px;
+  width: 26px;
+  height: 20px;
   background: none;
   border: none;
   cursor: pointer;
+  z-index: 1001;
 }
+
 .bar {
   height: 3px;
   width: 100%;
   background: var(--text, #333);
-  border-radius: 2px;
-  transition: transform 0.3s, opacity 0.3s;
+  border-radius: 3px;
+  transition: all 0.3s ease;
 }
+
 .barOpen:nth-child(1) {
-  transform: rotate(45deg) translateY(7px);
+  transform: translateY(8.5px) rotate(45deg);
 }
+
 .barOpen:nth-child(2) {
   opacity: 0;
+  transform: translateX(-20px);
 }
+
 .barOpen:nth-child(3) {
-  transform: rotate(-45deg) translateY(-7px);
+  transform: translateY(-8.5px) rotate(-45deg);
+}
+
+/* ===== OVERLAY SEPARADO (sin oscurecer el menú) ===== */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  z-index: 999;
+}
+
+.overlayVisible {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -189,30 +257,77 @@
 
   .nav {
     position: fixed;
-    top: 70px;
+    top: 0;
     right: -100%;
-    width: 72%;
-    height: calc(100vh - 70px);
+    width: 320px;
+    max-width: 85vw;
+    height: 100vh;
     background: var(--surface);
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2rem;
-    transition: right 0.35s ease;
-    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.12);
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 5rem 2rem 2rem;
+    transition: right 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+    overflow-y: auto;
+    z-index: 1000;
   }
 
   .showMenu {
     right: 0;
   }
 
-  .navList {
+  .infoLinks {
     flex-direction: column;
-    gap: 1.5rem;
+    align-items: stretch;
+    gap: 0;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+    margin-bottom: 2rem;
   }
+
+  .link {
+    padding: 1rem 0.75rem;
+    font-size: 1.05rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    text-align: left;
+  }
+
+  .link::after {
+    display: none;
+  }
+
+  .link:hover {
+    background: rgba(255, 107, 0, 0.08);
+    padding-left: 1.25rem;
+  }
+
   .actions {
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .userChip,
+  .login,
+  .signup,
+  .logoutBtn {
+    width: 100%;
+    justify-content: center;
+    padding: 1rem;
+    font-size: 1rem;
+  }
+}
+
+/* Tablet - ajustes intermedios */
+@media (min-width: 768px) and (max-width: 991px) {
+  .infoLinks {
+    gap: 1.2rem;
+  }
+
+  .link {
+    font-size: 0.95rem;
   }
 }
 
@@ -220,23 +335,62 @@
 @media (prefers-color-scheme: dark) {
   .header {
     background: var(--surface);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
+
+  .link {
+    color: var(--text-muted, #aaa);
+  }
+
+  .link::after {
+    background: var(--accent);
+  }
+
   .login {
     border-color: rgba(255, 255, 255, 0.15);
     color: var(--text);
   }
+
+  .login:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
   .userChip {
     background: #0f141b;
     border-color: rgba(255, 255, 255, 0.08);
     color: var(--text);
   }
-  .logoutBtn {
-    background: #121821;
-    color: var(--text);
-    border-color: rgba(255, 255, 255, 0.08);
+
+  .userChip:hover {
+    background: #1a1f2e;
   }
+
+  .logoutBtn {
+    background: transparent;
+    color: var(--text);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .logoutBtn:hover {
+    background: rgba(220, 53, 69, 0.15);
+  }
+
   .avatar {
-    background: var(--accent);
+    background: linear-gradient(135deg, var(--accent), #ff8533);
     color: #fff;
+  }
+
+  .bar {
+    background: var(--text, #fff);
+  }
+
+  @media (max-width: 992px) {
+    .nav {
+      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .link:hover {
+      background: rgba(255, 107, 0, 0.15);
+    }
   }
 }

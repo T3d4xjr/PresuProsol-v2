@@ -3,7 +3,6 @@ import Head from "next/head";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 import styles from "../styles/Home.module.css";
 import useAuth from "../hooks/useAuth";
 import LoginAlert from "../components/LoginAlert"; // modal personalizado
@@ -266,7 +265,7 @@ export default function Home() {
         </section>
       </main>
 
-      <Footer />
+    
 
       {/* Modal personalizado de acceso */}
       {showAlert && <LoginAlert onClose={() => setShowAlert(false)} />}

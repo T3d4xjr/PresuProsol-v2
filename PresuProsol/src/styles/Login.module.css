@@ -7,9 +7,9 @@
   display: flex;
   align-items: center;       /* centra verticalmente */
   justify-content: center;   /* centra horizontalmente */
-  min-height: calc(100vh - 220px); /* deja sitio para header + footer */
+  min-height: calc(100vh - 70px); /* 👈 solo resta el header (70px) */
   background: var(--background);
-  padding: 32px 16px;
+  padding: 32px 16px 64px; /* 👈 padding-bottom generoso */
 }
 
 /* Caja que limita el ancho */

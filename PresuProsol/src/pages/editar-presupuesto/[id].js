@@ -5,7 +5,6 @@ import Head from "next/head";
 import useAuth from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabaseClient";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 
 // Importar componentes de productos
 import CompactosForm from "../../components/productos/compactos";
@@ -206,7 +205,6 @@ export default function EditarPresupuesto() {
             <p className="mt-3">Cargando presupuesto...</p>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -425,7 +423,6 @@ export default function EditarPresupuesto() {
         }
       `}</style>
 
-      <Footer />
     </>
   );
 }

@@ -3,7 +3,6 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import Header from "../../components/Header";
-import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 
 export default function PergolaIndex() {
@@ -22,7 +21,6 @@ export default function PergolaIndex() {
         <title>Pérgolas Bioclimáticas · PresuProsol</title>
       </Head>
 
-      {/* Wrapper para pegar el footer abajo */}
       <div className="d-flex flex-column min-vh-100">
         <Header />
 
@@ -109,7 +107,6 @@ export default function PergolaIndex() {
           </div>
         </main>
 
-        <Footer />
       </div>
     </>
   );

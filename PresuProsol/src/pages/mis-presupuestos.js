@@ -5,7 +5,6 @@ import { useRouter } from "next/router";
 import useAuth from "../hooks/useAuth";
 import { supabase } from "../lib/supabaseClient";
 import Header from "../components/Header";
-import Footer from "../components/Footer";
 import ModalPago from "../components/ModalPago";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -299,7 +298,6 @@ export default function MisPresupuestos() {
             <p className="mt-3">Cargando presupuestos...</p>
           </div>
         </main>
-        <Footer />
       </>
     );
   }
@@ -533,7 +531,6 @@ export default function MisPresupuestos() {
         />
       )}
 
-      <Footer />
     </>
   );
 }
