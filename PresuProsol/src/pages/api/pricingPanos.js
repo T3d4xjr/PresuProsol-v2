@@ -1,5 +1,5 @@
 // src/lib/pricingPanos.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 // precio base €/m² del modelo+acabado
 export async function getPanoPricePerM2(modeloId, acabadoId) {

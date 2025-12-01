@@ -1,5 +1,5 @@
 // src/pages/api/mosquiteras.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 /* ========= Helpers internos ========= */
 

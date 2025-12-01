@@ -1,5 +1,5 @@
 // src/pages/api/panos.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 // 📦 Catálogo panos: modelos, acabados, accesorios
 export async function fetchCatalogoPanos() {

@@ -1,5 +1,5 @@
 // src/pages/api/admin-usuarios-api.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 /** 📥 Listar usuarios de administración */
 export async function fetchAdminUsuarios() {

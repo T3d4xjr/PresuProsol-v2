@@ -1,5 +1,5 @@
 // src/pages/api/proteccionSolar.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 // 📦 Cargar catálogo (modelos, colores, accesorios)
 export async function fetchCatalogoProteccionSolar() {

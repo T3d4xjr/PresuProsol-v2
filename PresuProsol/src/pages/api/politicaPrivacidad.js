@@ -1,5 +1,5 @@
 // ./api/politicaPrivacidad.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export async function fetchPoliticaPrivacidadActiva() {
   console.log("🔐 [API] Cargando política de privacidad");

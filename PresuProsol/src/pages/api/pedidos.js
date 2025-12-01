@@ -1,5 +1,5 @@
 // ./api/pedidos.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export async function fetchPedidosUsuario(userId) {
   const { data, error } = await supabase

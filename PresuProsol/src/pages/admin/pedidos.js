@@ -12,7 +12,7 @@ import {
 } from "../api/admin-pedidos-api";
 
 // 👉 Email de pedido enviado
-import { enviarAvisoPedidoEnviado } from "../api/emailNotifications";
+import { enviarAvisoPedidoEnviado } from "../../lib/emailNotifications";
 
 export default function AdminPedidos() {
   const router = useRouter();

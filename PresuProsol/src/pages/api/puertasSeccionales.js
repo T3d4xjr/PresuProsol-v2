@@ -1,5 +1,5 @@
 // src/pages/api/puertasSeccionales.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 // 📦 Cargar catálogo (medidas, colores, accesorios)
 export async function fetchCatalogoPuertasSeccionales() {

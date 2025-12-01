@@ -1,5 +1,5 @@
 // ./api/faqs.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export async function fetchFaqsActivas() {
   console.log("📚 [API] Cargando FAQs");

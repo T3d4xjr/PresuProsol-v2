@@ -1,5 +1,5 @@
 // ./api/terminos.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export async function fetchTerminosActivos() {
   console.log("📄 [API] Cargando términos");

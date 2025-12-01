@@ -1,5 +1,5 @@
 // src/pages/api/admin-pedidos-api.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 /** 📥 Cargar pedidos + datos de usuario y presupuesto */
 export async function fetchAdminPedidos() {

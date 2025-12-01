@@ -1,5 +1,5 @@
 // @/pages/api/registroUsuario.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export async function registrarSolicitudAcceso({ usuario, email, cif, pass }) {
   // Crear usuario en Auth

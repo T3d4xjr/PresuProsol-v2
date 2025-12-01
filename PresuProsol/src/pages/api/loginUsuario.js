@@ -1,5 +1,5 @@
 // src/pages/api/loginUsuario.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 // Login con email y password (wrapper directo de Supabase)
 export function signInWithEmailPassword({ email, password }) {

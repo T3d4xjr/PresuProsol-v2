@@ -1,5 +1,5 @@
 // src/pages/api/compactos-api.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 /** ================================
  * 📦 Cargar catálogo compactos

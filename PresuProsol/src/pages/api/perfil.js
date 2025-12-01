@@ -1,5 +1,5 @@
 // ./api/perfil.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export async function actualizarPerfil(userId, campos) {
   const payload = {

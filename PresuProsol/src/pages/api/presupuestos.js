@@ -1,5 +1,5 @@
 // ./api/presupuestos.js
-import { supabase } from "./supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export async function fetchPresupuestosUsuario(userId) {
   const { data, error } = await supabase

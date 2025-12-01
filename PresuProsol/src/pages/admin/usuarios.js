@@ -15,7 +15,7 @@ import {
 } from "../api/admin-usuarios-api";
 
 // 👉 Helper de notificaciones por email
-import { enviarAvisoEstadoUsuario } from "../api/emailNotifications";
+import { enviarAvisoEstadoUsuario } from "../../lib/emailNotifications";
 
 export default function UsuariosAdmin() {
   const router = useRouter();
