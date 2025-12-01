@@ -1,12 +1,16 @@
+// jsconfig.json
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "commonjs",
-    "baseUrl": "src",
+    "baseUrl": ".",               // raíz del proyecto (donde está este archivo)
     "paths": {
-      "@/*": ["*"]
-    },
-    "jsx": "preserve"
+      "@/*": ["src/*"]            // para poder usar import algo from "@/..."
+    }
   },
-  "include": ["src", "pages/mis-presupuestos.js", "pages/login.js"]
+  "include": [
+    "next-env.d.ts",
+    "src/**/*.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
